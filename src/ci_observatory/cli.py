@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -66,6 +67,21 @@ def can_read(repo: str) -> tuple[bool, bool]:
         ["gh", "api", "--method", "GET", f"repos/{repo}", "--jq", ".private"], capture_output=True, text=True, check=False
     )
     return proc.returncode == 0, proc.stdout.strip() == "true"
+
+
+def shareable(argv: Sequence[str]) -> str:
+    """The command line as the report shows it: without --out and --open, which only make sense on this machine (and
+    a path can name a local user)."""
+    kept: list[str] = []
+    skip = False
+    for arg in argv:
+        if skip:
+            skip = False
+        elif arg == "--out":
+            skip = True
+        elif not (arg.startswith("--out=") or arg == "--open"):
+            kept.append(arg)
+    return shlex.join(["ci-observatory", *kept])
 
 
 def step(name: str, code: int) -> bool:
@@ -193,14 +209,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     say("\n[4/4] Report")
     who = ", ".join(args.org) or (repos[0] if len(repos) == 1 else f"{len(scanned)} repositories")
     heading = args.title or "CI Observatory"
-    shown = " ".join(a if " " not in a else repr(a) for a in (argv if argv is not None else sys.argv[1:]))
     paths = {key: data / name for key, name in report.DATA_FILES.items()}
     out = report.build(
         paths,
         args.out / "index.html",
         heading=heading,
         orgs=who,
-        command=f"ci-observatory {shown}".strip(),
+        command=shareable(argv if argv is not None else sys.argv[1:]),
         note=(
             "Contains workflow names, PR titles of AI-assisted changes and cleaned log excerpts:"
             " share it like the repositories themselves."

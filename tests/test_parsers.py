@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from ci_observatory import report
+from ci_observatory.cli import shareable
 from ci_observatory.logs import (
     AuditJob,
     TestUnits,
@@ -178,3 +179,8 @@ def test_report_data_cannot_close_its_script_tag() -> None:
     assert "<" not in data
     assert json.loads(data)["runs"][0]["workflow"].startswith("</script>")
     assert page.startswith("<!doctype html>")
+
+
+def test_shared_command_leaves_out_local_options() -> None:
+    argv = ["--org", "acme", "--out", "/Users/someone/reports", "--title", "Payments CI", "--open", "--out=/tmp/x"]
+    assert shareable(argv) == "ci-observatory --org acme --title 'Payments CI'"

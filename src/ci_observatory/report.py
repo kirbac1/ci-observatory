@@ -99,7 +99,8 @@ def build(
         "signals": load(paths.get("signals")),
     }
     window = f"{meta['since']} to {meta['until']}" if meta["since"] else "recent runs"
-    subtitle = f"GitHub Actions across {len(repos)} repositories{' · ' + meta['orgs'] if meta['orgs'] else ''} · {window}"
+    count = f"{len(repos)} repositories" if len(repos) != 1 else "1 repository"
+    subtitle = f"GitHub Actions across {count}{' · ' + meta['orgs'] if meta['orgs'] else ''} · {window}"
     description = "CI/CD speed and failures, job logs, repeated tests, DORA metrics and AI use across GitHub repositories."
     text = bundle(data, title=heading, heading=heading, subtitle=subtitle, description=description, document=document)
     out.parent.mkdir(parents=True, exist_ok=True)

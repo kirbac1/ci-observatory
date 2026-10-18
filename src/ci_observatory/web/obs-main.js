@@ -33,7 +33,7 @@
     const meta = data.meta || {};
     const logs = data.logs && data.logs.totals;
     O.put(O.clear(O.$('#status-line')), [
-      O.el('span', null, O.el('i', { class: 'led' }), `${O.fmt.int(O.fleet.runs.length)} runs in ${O.fleet.repos.length} repositories`),
+      O.el('span', null, O.el('i', { class: 'led' }), `${O.fmt.int(O.fleet.runs.length)} runs in ${O.fleet.repos.length === 1 ? '1 repository' : O.fleet.repos.length + ' repositories'}`),
       logs ? O.el('span', { text: `${logs.jobs} job logs read` }) : null,
       meta.generated_at ? O.el('span', { text: `Updated ${new Date(meta.generated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` }) : null,
     ]);
@@ -90,7 +90,7 @@
     if (O.reduced || location.hash === '#noboot' || (data.meta && data.meta.noboot)) { finish(); return; }
     const sig = data.signals && data.signals.totals, logs = data.logs && data.logs.totals;
     const lines = [
-      `> Reading ${O.fmt.int(O.fleet.runs.length)} CI runs from ${O.fleet.repos.length} repositories`,
+      `> Reading ${O.fmt.int(O.fleet.runs.length)} CI runs from ${O.fleet.repos.length === 1 ? '1 repository' : O.fleet.repos.length + ' repositories'}`,
       logs ? `> Decoding ${logs.jobs} job logs` : null,
       sig ? `> Tracing AI in ${sig.prs} pull requests` : null,
       '> Ready',
