@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CI Observatory</title>
+<meta name="description" content="One command that maps CI/CD speed, failures, repeated tests, DORA metrics and AI use across your GitHub repositories, public or private.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CI Observatory">
+<meta property="og:description" content="One command, one HTML report: what is slow, what fails and why, which tests run twice, how fast you ship, how much AI is involved, and what to fix first.">
+<meta property="og:url" content="https://kirbac1.github.io/ci-observatory/">
+<meta property="og:image" content="https://kirbac1.github.io/ci-observatory/assets/hero.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  /* The same calm dark console as the report itself: one deliberate look, so colors are set explicitly. */
+  :root {
+    color-scheme: dark;
+    --void: #060a10;
+    --hull: #0c121b;
+    --hull-2: #101826;
+    --line: rgba(160, 200, 225, 0.13);
+    --line-2: rgba(160, 200, 225, 0.24);
+    --hud: #5fd3f3;
+    --hud-glow: rgba(95, 211, 243, 0.22);
+    --ink: #e8f1f8;
+    --ink-2: #aec2d0;
+    --ink-3: #8199aa;
+    --good: #46d67a;
+    --sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--void);
+    background-image: radial-gradient(1200px 600px at 70% -10%, rgba(95, 211, 243, 0.08), transparent 60%);
+    color: var(--ink);
+    font: 16px/1.65 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--hud); text-underline-offset: 0.2em; }
+  img { max-width: 100%; height: auto; display: block; }
+  [hidden] { display: none !important; }
+  code, pre, kbd { font-family: var(--mono); }
+  .wrap {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+
+  /* top bar */
+  .bar { border-bottom: 1px solid var(--line); }
+  .bar .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding-block: 14px; }
+  .brand { white-space: nowrap; display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 17px; }
+  .brand svg { width: 30px; height: 30px; }
+  .bar nav { display: flex; gap: 6px 22px; flex-wrap: wrap; font-size: 15px; }
+  .bar nav a { color: var(--ink-2); text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+
+  /* hero */
+  .hero { padding-block: 64px 28px; }
+  .eyebrow { font: 500 13px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hud); }
+  h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.08; letter-spacing: -0.02em; margin: 14px 0 18px; text-wrap: balance; max-width: 16ch; }
+  .lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--ink-2); max-width: 62ch; margin: 0; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px;
+    font: 600 15px var(--sans); text-decoration: none; border: 1px solid var(--line-2); color: var(--ink); background: var(--hull-2);
+  }
+  .btn:hover { border-color: var(--hud); }
+  .btn.primary { background: var(--hud); color: #04131a; border-color: var(--hud); box-shadow: 0 0 24px var(--hud-glow); }
+  .btn.primary:hover { filter: brightness(1.08); }
+
+  /* install panel */
+  .install { margin-top: 40px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--hull); overflow: hidden; }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    font: 500 14.5px var(--sans); color: var(--ink-3); background: none; border: 0; padding: 12px 18px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--hud); }
+  .tabs button:hover { color: var(--ink); }
+  .panel { padding: 18px 18px 20px; display: grid; gap: 12px; }
+  .panel p { margin: 0; color: var(--ink-3); font-size: 14.5px; }
+  .cmd { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
+  .cmd pre {
+    flex: 1; min-width: 0; margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--void); border: 1px solid var(--line);
+    font-size: 14.5px; color: var(--ink); overflow-x: auto; white-space: pre;
+  }
+  .cmd pre .p { color: var(--ink-3); user-select: none; }
+  .cmd pre .c { color: var(--ink-3); }
+  .copy {
+    flex: none; font: 500 13.5px var(--sans); color: var(--ink-2); background: var(--hull-2); border: 1px solid var(--line-2);
+    border-radius: 8px; padding: 0 14px; cursor: pointer;
+  }
+  .copy:hover { color: var(--ink); border-color: var(--hud); }
+  .copy.done { color: var(--good); border-color: var(--good); }
+
+  /* screenshot frame */
+  .shot { border: 1px solid var(--line-2); border-radius: var(--radius); overflow: hidden; background: var(--hull); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+  .shot .chrome { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .shot .chrome i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
+  .shot .chrome span { margin-left: 10px; font: 13px var(--mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hero-shot { margin-top: 44px; display: block; text-decoration: none; }
+  .hero-shot:hover .shot { border-color: var(--hud); }
+
+  /* sections */
+  section { padding-block: 56px; }
+  h2 { font-size: clamp(26px, 3vw, 34px); line-height: 1.15; letter-spacing: -0.01em; margin: 10px 0 12px; text-wrap: balance; }
+  .intro { color: var(--ink-2); max-width: 64ch; margin: 0 0 32px; }
+  .features { display: grid; gap: 64px; }
+  .feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 40px; align-items: center; }
+  .feature:nth-child(even) { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .feature:nth-child(even) .text { order: 2; }
+  .feature .num { font: 500 13px var(--mono); color: var(--hud); }
+  .feature h3 { font-size: 23px; margin: 6px 0 10px; }
+  .feature p { color: var(--ink-2); margin: 0 0 12px; }
+  .feature ul { margin: 0; padding-left: 18px; color: var(--ink-2); display: grid; gap: 4px; }
+  .feature li::marker { color: var(--hud); }
+
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--hull); padding: 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  .card h3 { margin: 0; font-size: 18px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .card pre { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--void); border: 1px solid var(--line); font-size: 13px; overflow-x: auto; color: var(--ink); }
+  .card .tag { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .safe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .safe div { border-top: 2px solid var(--hud); padding-top: 14px; }
+  .safe b { display: block; font-size: 17px; margin-bottom: 6px; }
+  .safe span { color: var(--ink-2); font-size: 15px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--hull); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; font-size: 13.5px; }
+  tr:last-child td { border-bottom: 0; }
+  td code { color: var(--ink); white-space: nowrap; font-size: 14px; }
+
+  .docs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .docs a { display: block; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--hull); text-decoration: none; color: var(--ink); }
+  .docs a:hover { border-color: var(--hud); }
+  .docs a b { display: block; font-size: 16px; }
+  .docs a span { color: var(--ink-3); font-size: 14px; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 40px; }
+  footer .wrap { padding-block: 28px 40px; color: var(--ink-3); font-size: 14px; display: grid; gap: 8px; }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 860px) {
+    .feature, .feature:nth-child(even) { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .feature:nth-child(even) .text { order: 0; }
+    .cards { grid-template-columns: minmax(0, 1fr); }
+    .safe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .hero { padding-block: 40px 20px; }
+    .safe { grid-template-columns: minmax(0, 1fr); }
+    .cmd { flex-direction: column; }
+    .copy { padding: 8px 14px; align-self: flex-start; }
+    .bar nav { gap: 4px 14px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="21" fill="none" stroke="#5fd3f3" stroke-opacity=".3"/>
+        <circle cx="24" cy="24" r="13" fill="none" stroke="#5fd3f3" stroke-opacity=".55" stroke-dasharray="3 3"/>
+        <circle cx="24" cy="24" r="4" fill="#5fd3f3"/>
+        <circle cx="35" cy="13" r="2.6" fill="#46d67a"/>
+      </svg>
+      CI Observatory
+    </a>
+    <nav aria-label="Site">
+      <a href="demo/">Live demo</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/kirbac1/ci-observatory#documentation">Docs</a>
+      <a href="https://github.com/kirbac1/ci-observatory">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div class="eyebrow">GitHub Actions · DORA · AI in CI</div>
+    <h1>See how your CI/CD really works.</h1>
+    <p class="lede">
+      One command reads the GitHub Actions history of your repositories, public or private, and writes one HTML report:
+      what is slow, what fails and why, which tests run twice, how fast you ship, how much AI is involved, and what to
+      fix first.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="demo/">Open the live demo →</a>
+      <a class="btn" href="#install">Install in one line</a>
+      <a class="btn" href="https://github.com/kirbac1/ci-observatory">View on GitHub</a>
+    </div>
+
+    <div class="install" id="install">
+      <div class="tabs" role="tablist" aria-label="Ways to install">
+        <button role="tab" id="t-install" aria-controls="p-install" aria-selected="true">Install</button>
+        <button role="tab" id="t-uvx" aria-controls="p-uvx" aria-selected="false" tabindex="-1">Run once, no install</button>
+        <button role="tab" id="t-pipx" aria-controls="p-pipx" aria-selected="false" tabindex="-1">pipx</button>
+        <button role="tab" id="t-actions" aria-controls="p-actions" aria-selected="false" tabindex="-1">GitHub Actions</button>
+      </div>
+      <div class="panel" role="tabpanel" id="p-install" aria-labelledby="t-install">
+        <div class="cmd"><pre><span class="p">$ </span>curl -LsSf https://kirbac1.github.io/ci-observatory/install.sh | sh</pre><button class="copy" type="button" data-copy="curl -LsSf https://kirbac1.github.io/ci-observatory/install.sh | sh">Copy</button></div>
+        <div class="cmd"><pre><span class="p">$ </span>ci-observatory --org your-org --open</pre><button class="copy" type="button" data-copy="ci-observatory --org your-org --open">Copy</button></div>
+        <p>macOS and Linux. The installer adds <a href="https://docs.astral.sh/uv/">uv</a> if it is missing (it brings its own Python), then the <code>ci-observatory</code> command. No sudo. You also need the <a href="https://cli.github.com">GitHub CLI</a>, logged in with <code>gh auth login</code>.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-uvx" aria-labelledby="t-uvx" hidden>
+        <div class="cmd"><pre><span class="p">$ </span>uvx --from git+https://github.com/kirbac1/ci-observatory ci-observatory --org your-org --open</pre><button class="copy" type="button" data-copy="uvx --from git+https://github.com/kirbac1/ci-observatory ci-observatory --org your-org --open">Copy</button></div>
+        <p>Runs the latest version in a throwaway environment and leaves nothing installed. Use this on Windows, where the shell installer does not run. Inside a clone of any GitHub repository, leave out <code>--org</code> to analyse that repository.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-pipx" aria-labelledby="t-pipx" hidden>
+        <div class="cmd"><pre><span class="p">$ </span>pipx install git+https://github.com/kirbac1/ci-observatory</pre><button class="copy" type="button" data-copy="pipx install git+https://github.com/kirbac1/ci-observatory">Copy</button></div>
+        <p>If you already use pipx. Python 3.11 or newer. The tool has no dependencies outside the standard library.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-actions" aria-labelledby="t-actions" hidden>
+        <div class="cmd"><pre><span class="c"># .github/workflows/ci-observatory.yml (excerpt)</span>
+permissions: { actions: read, contents: read, pull-requests: read }
+steps:
+  - run: pipx run --spec git+https://github.com/kirbac1/ci-observatory ci-observatory --repo "${{ github.repository }}"
+    env: { GH_TOKEN: "${{ github.token }}" }</pre></div>
+        <p>A weekly report for one repository, private ones included, using the workflow's own read-only token. The <a href="https://github.com/kirbac1/ci-observatory/blob/main/examples/ci-observatory.yml">full example</a> uploads the report as an artifact.</p>
+      </div>
+    </div>
+
+    <a class="hero-shot" href="demo/" aria-label="Open the live demo">
+      <div class="shot">
+        <div class="chrome"><i></i><i></i><i></i><span>Live demo · 19 of Aiven's public repositories · 5,620 runs</span></div>
+        <img src="assets/hero.jpg" width="1280" height="800" alt="The report's overview: 5,620 runs across 19 repositories, 88% passed, a bubble chart of speed against reliability, and runs per hour of the day">
+      </div>
+    </a>
+  </div>
+
+  <section id="report">
+    <div class="wrap">
+      <div class="eyebrow">What the report shows</div>
+      <h2>Seven questions, one page.</h2>
+      <p class="intro">Every chart answers one question in plain words. Click any repository to focus the whole page on it. The <a href="demo/">live demo</a> is built from public data of 19 repositories in Aiven's public GitHub organisations.</p>
+      <div class="features">
+        <div class="feature">
+          <div class="text">
+            <div class="num">01 · Overview</div>
+            <h3>Which repositories are fast and reliable?</h3>
+            <p>Runs, pass rate, typical and slow run times, then one bubble per repository: higher passes more often, further left finishes sooner.</p>
+            <ul><li>When runs start, by hour, in UTC or your own time</li><li>How many runs pass each day, weekends shaded</li></ul>
+          </div>
+          <div class="shot"><img src="assets/hero.jpg" width="1280" height="800" loading="lazy" alt="Overview with headline numbers and the speed against reliability chart"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">02 · Delivery (DORA)</div>
+            <h3>How well do you ship?</h3>
+            <p>The four DORA measures, each rated Low to Elite: how often you ship, pull request to release, releases that needed a fix, and time to fix a broken main branch.</p>
+            <ul><li>Per repository, sortable</li><li>A timeline of every release</li></ul>
+          </div>
+          <div class="shot"><img src="assets/delivery.jpg" width="1280" height="820" loading="lazy" alt="Four DORA tiles rated Low to Elite and a table of repositories"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">03 · Inside a job</div>
+            <h3>Where did the time go, and why did it fail?</h3>
+            <p>Pick any job: its time split into setup, dependencies, build, tests and scans, its steps in order with the silent stretches marked, and the log lines that matter.</p>
+            <ul><li>"What went wrong" in one sentence</li><li>Replay the log at speed</li></ul>
+          </div>
+          <div class="shot"><img src="assets/job.jpg" width="1280" height="900" loading="lazy" alt="A failed Maven job: tests took 65% of the time, 13 of 13 tests failed, steps in order and the important log lines"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">04 · Health check</div>
+            <h3>Why do jobs fail, and are the basics in place?</h3>
+            <p>Failures sorted by cause, code problems apart from timeouts, network errors and process checks. Then the safety basics per repository.</p>
+            <ul><li>Read-only tokens, pinned actions, time limits</li><li>Outdated actions before they break</li></ul>
+          </div>
+          <div class="shot"><img src="assets/health.jpg" width="1280" height="900" loading="lazy" alt="Failure causes as bars and a table of safety checks per repository"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">05 · Test audit</div>
+            <h3>Which tests run more than once for nothing?</h3>
+            <p>For one recent pull request per repository, every test from every job is matched. Repeats are sorted: another version (useful), or the same test again (waste).</p>
+            <ul><li>Tests inside security scans, double triggers, overlapping workflows</li><li>Checked before any fix is suggested</li></ul>
+          </div>
+          <div class="shot"><img src="assets/tests.jpg" width="1280" height="860" loading="lazy" alt="Test runs per repository split into each test once, repeats for another version and repeats for no benefit"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">06 · AI impact</div>
+            <h3>How much AI writes, reviews and runs code?</h3>
+            <p>Which AI tools and models are named in pull requests and commits, how much CI time involves AI, and whether AI-written changes run into more problems, with honest error bars.</p>
+            <ul><li>Claude Code, Copilot, Cursor, Codex, Gemini and more</li><li>Only counted where AI leaves a trace</li></ul>
+          </div>
+          <div class="shot"><img src="assets/ai.jpg" width="1280" height="900" loading="lazy" alt="Shares of pull requests and commits that name AI, AI tools and models by pull request count"></div>
+        </div>
+        <div class="feature">
+          <div class="text">
+            <div class="num">07 · Solution box</div>
+            <h3>What should you fix first?</h3>
+            <p>Every problem found becomes a card: the problem in your numbers, the gain, and how to fix it, often with ready YAML. Ordered: remove waste, fix what breaks, speed up, prevent.</p>
+            <ul><li>Filter by area</li><li>Copy the whole list as Markdown for an issue</li></ul>
+          </div>
+          <div class="shot"><img src="assets/fixes.jpg" width="1280" height="900" loading="lazy" alt="Solution cards with severity, problem, gain and a How to fix it link, grouped in phases"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="private">
+    <div class="wrap">
+      <div class="eyebrow">Private repositories</div>
+      <h2>Private repositories work the same way.</h2>
+      <p class="intro">The command does not change. What matters is that your GitHub login, or the token you hand to <code>gh</code>, can read them. Pick one:</p>
+      <div class="cards">
+        <div class="card">
+          <div class="tag">Simplest</div>
+          <h3>Your own gh login</h3>
+          <p>Add the scopes once. If your organisation uses SAML SSO, authorise the GitHub CLI for it.</p>
+          <pre>gh auth refresh -s repo,read:org
+ci-observatory --org my-org \
+  --visibility private</pre>
+        </div>
+        <div class="card">
+          <div class="tag">Least privilege</div>
+          <h3>A fine-grained token</h3>
+          <p>Read-only Actions, Contents and Pull requests, on just the repositories you choose.</p>
+          <pre>GH_TOKEN=github_pat_… \
+  ci-observatory --org my-org</pre>
+        </div>
+        <div class="card">
+          <div class="tag">Automated</div>
+          <h3>Inside GitHub Actions</h3>
+          <p>The workflow's own token covers its repository. A GitHub App token covers a whole organisation.</p>
+          <pre>env:
+  GH_TOKEN: ${{ github.token }}</pre>
+        </div>
+      </div>
+      <p class="intro" style="margin-top:20px">Step by step, with SSO, token approval and GitHub Enterprise Server: <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/private-repositories.md">the private repositories guide</a>.</p>
+    </div>
+  </section>
+
+  <section id="safe">
+    <div class="wrap">
+      <div class="eyebrow">Safe by design</div>
+      <h2>It only looks.</h2>
+      <div class="safe">
+        <div><b>Read-only</b><span>Every request is <code>gh api --method GET</code>. Nothing is ever written to GitHub.</span></div>
+        <div><b>Never sees your token</b><span>The GitHub CLI holds the credentials. The tool only runs <code>gh</code>.</span></div>
+        <div><b>Stays on your machine</b><span>One HTML file and its data, in a folder you choose. No server, no telemetry.</span></div>
+        <div><b>People are not named</b><span>Authors count as "people". Log lines are cleaned of names, emails and tokens.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="commands">
+    <div class="wrap">
+      <div class="eyebrow">Everyday commands</div>
+      <h2>Point it at a repository, a list, or a whole organisation.</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>You want</th><th>Command</th></tr></thead>
+          <tbody>
+            <tr><td>The repository you are in</td><td><code>ci-observatory --open</code></td></tr>
+            <tr><td>One or a few repositories</td><td><code>ci-observatory --repo my-org/api --repo my-org/web</code></td></tr>
+            <tr><td>The 12 busiest repositories of an organisation</td><td><code>ci-observatory --org my-org</code></td></tr>
+            <tr><td>The 25 busiest private ones</td><td><code>ci-observatory --org my-org --top 25 --visibility private</code></td></tr>
+            <tr><td>A fast first look</td><td><code>ci-observatory --org my-org --quick</code></td></tr>
+            <tr><td>The last 60 days</td><td><code>ci-observatory --org my-org --days 60</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="intro" style="margin-top:20px">A dozen repositories take about 5 to 10 minutes and 1,000 to 2,000 API calls, well within GitHub's hourly limit. A second run reuses cached logs and is much faster.</p>
+    </div>
+  </section>
+
+  <section id="docs">
+    <div class="wrap">
+      <div class="eyebrow">Documentation</div>
+      <h2>Read more</h2>
+      <div class="docs">
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/install.md"><b>Install</b><span>Every way to install, pin, upgrade and remove</span></a>
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/private-repositories.md"><b>Private repositories</b><span>gh scopes, SSO, fine-grained tokens, Enterprise</span></a>
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/github-actions.md"><b>GitHub Actions</b><span>A weekly report for a repository or an organisation</span></a>
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/report-guide.md"><b>Reading the report</b><span>What each chart means and what to do about it</span></a>
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/how-it-works.md"><b>How it works</b><span>Data, methods, DORA proxies, AI detection and limits</span></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>MIT licensed · <a href="https://github.com/kirbac1/ci-observatory">github.com/kirbac1/ci-observatory</a> · Made by <a href="https://kirbac.fi">Ugur Kirbac</a></div>
+    <div>The demo is a snapshot from 3 September to 18 October 2026, built from public GitHub data of the aiven and Aiven-Open organisations. It is not affiliated with or endorsed by Aiven.</div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    'use strict';
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+    function select(tab) {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      }
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        const next = tabs[(i + step + tabs.length) % tabs.length];
+        select(next);
+        next.focus();
+      });
+    });
+    for (const button of document.querySelectorAll('.copy')) {
+      button.addEventListener('click', () => {
+        const text = button.dataset.copy;
+        const done = () => { button.textContent = 'Copied'; button.classList.add('done'); setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('done'); }, 1600); };
+        const fallback = () => {
+          const range = document.createRange();
+          range.selectNodeContents(button.previousElementSibling);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          button.textContent = 'Press ⌘C';
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+        else fallback();
+      });
+    }
+  })();
+</script>
+</body>
+</html>

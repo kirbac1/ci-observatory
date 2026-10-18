@@ -1,0 +1,65 @@
+# A weekly CI Observatory report for this repository, uploaded as a workflow artifact.
+#
+# Copy this file to .github/workflows/ci-observatory.yml. It works for private repositories with the workflow's own
+# token: the permissions below are all it needs. Download the report from the run's "Artifacts" section and open
+# index.html. More: https://github.com/kirbac1/ci-observatory/blob/main/docs/github-actions.md
+name: CI Observatory
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  actions: read # workflow runs, jobs and job logs
+  contents: read # workflow files, commits, releases
+  pull-requests: read # pull requests, their commits and reviews
+
+concurrency:
+  group: ci-observatory
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # gh, Python and pipx come with GitHub-hosted runners, so nothing needs installing.
+      - name: Build the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pipx run --spec "git+https://github.com/kirbac1/ci-observatory@v0.1.0" \
+            ci-observatory --repo "${{ github.repository }}" --days 30
+
+      - name: Upload the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-observatory
+          path: ci-observatory/
+          retention-days: 14
+
+  # To cover a whole organisation, including private repositories, the workflow token is not enough: it only sees its
+  # own repository. Install a GitHub App with read access to Actions, Contents and Pull requests on the repositories,
+  # store its ID as a variable and its private key as a secret, then use a job like this instead:
+  #
+  # org-report:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 60
+  #   steps:
+  #     - id: app
+  #       uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+  #       with:
+  #         app-id: ${{ vars.OBSERVATORY_APP_ID }}
+  #         private-key: ${{ secrets.OBSERVATORY_APP_KEY }}
+  #         owner: ${{ github.repository_owner }}
+  #     - env:
+  #         GH_TOKEN: ${{ steps.app.outputs.token }}
+  #       run: |
+  #         pipx run --spec "git+https://github.com/kirbac1/ci-observatory@v0.1.0" \
+  #           ci-observatory --org "${{ github.repository_owner }}" --top 20 --days 30
+  #     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  #       with:
+  #         name: ci-observatory
+  #         path: ci-observatory/
+  #         retention-days: 14

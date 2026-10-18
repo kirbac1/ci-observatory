@@ -1,0 +1,234 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="__DESCRIPTION__">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;650;700&family=DM+Mono:wght@400;500&display=swap">
+<style>/*__CSS__*/</style>
+<div class="obs" id="obs">
+  <div class="boot" id="boot" aria-hidden="true"><pre id="boot-text"></pre><div class="skip">Click or press any key to skip</div></div>
+
+  <header class="bridge">
+    <div class="wrap">
+      <div class="callsign">
+        <svg class="sigil" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="21" fill="none" stroke="#5fd3f3" stroke-opacity=".3"/>
+          <circle cx="24" cy="24" r="13" fill="none" stroke="#5fd3f3" stroke-opacity=".55" stroke-dasharray="3 3"/>
+          <circle cx="24" cy="24" r="4" fill="#5fd3f3"/>
+          <circle cx="35" cy="13" r="2.6" fill="#46d67a"/>
+        </svg>
+        <div>
+          <h1 id="title">__HEADING__</h1>
+          <div class="sub" id="subtitle">__SUBTITLE__</div>
+        </div>
+      </div>
+      <div class="status-line" id="status-line"></div>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Sections">
+    <div class="wrap">
+      <div class="links">
+        <a href="#overview">Overview</a>
+        <a href="#delivery">Delivery</a>
+        <a href="#job">Inside a job</a>
+        <a href="#health">Health check</a>
+        <a href="#tests">Test audit</a>
+        <a href="#ai">AI impact</a>
+        <a href="#fixes">Solution box</a>
+        <a href="#method">How it's measured</a>
+      </div>
+      <div class="filter" id="filter"></div>
+    </div>
+  </nav>
+
+  <main class="wrap">
+    <!-- 01 OVERVIEW -->
+    <section class="deck" id="overview" aria-labelledby="h-overview">
+      <div class="deck-head"><span class="no">01</span><h2 id="h-overview">Overview</h2>
+        <p>How CI is doing across all repositories. Click a repository anywhere to focus the whole page on it.</p></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid">
+        <div class="panel s7">
+          <div class="panel-head"><h3>Which repositories are fast and reliable?</h3><div class="tools"><button class="btn" id="scatter-table-btn" type="button" aria-pressed="false">Show as table</button></div></div>
+          <p class="hint">One bubble per repository. Higher passes more often, further left finishes sooner, bigger runs more.</p>
+          <div class="chart" id="scatter"></div>
+          <div id="scatter-table" hidden></div>
+          <p class="answer" id="scatter-answer"></p>
+        </div>
+        <div class="panel s5">
+          <div class="panel-head"><h3>When do runs start?</h3><div class="tools"><div class="seg" id="tz-seg"></div></div></div>
+          <p class="hint">Runs per hour of the day. The shaded band is 09:00–17:00.</p>
+          <div class="chart" id="hours"></div>
+          <p class="answer" id="hours-answer"></p>
+        </div>
+        <div class="panel s12">
+          <div class="panel-head"><h3>How many runs pass each day?</h3></div>
+          <div class="chart" id="daily"></div>
+          <div class="legend" id="daily-legend"></div>
+          <p class="answer" id="daily-answer"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 DELIVERY -->
+    <section class="deck" id="delivery" aria-labelledby="h-delivery">
+      <div class="deck-head"><span class="no">02</span><h2 id="h-delivery">Delivery (DORA)</h2>
+        <p>The four standard measures of how well a team ships software, rated from Low to Elite.</p></div>
+      <div class="tiles" id="dora-tiles"></div>
+      <p class="answer" id="dora-answer" style="margin-bottom:16px"></p>
+      <div class="grid">
+        <div class="panel s12">
+          <div class="panel-head"><h3>How does each repository do?</h3></div>
+          <div id="dora-table"></div>
+        </div>
+        <div class="panel s12">
+          <div class="panel-head"><h3>When did each repository ship?</h3></div>
+          <p class="hint">Each mark is a release or a deploy.</p>
+          <div class="chart" id="dora-cadence"></div>
+          <div class="legend" id="dora-cadence-legend"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 INSIDE A JOB -->
+    <section class="deck" id="job" aria-labelledby="h-job">
+      <div class="deck-head"><span class="no">03</span><h2 id="h-job">Inside a job</h2>
+        <p>Pick a job to see where its time went and, if it failed, why.</p></div>
+      <div class="grid">
+        <div class="panel s8">
+          <div class="viewer">
+            <div>
+              <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap" id="joblist-tools"></div>
+              <div class="joblist" id="joblist" role="list"></div>
+            </div>
+            <div style="min-width:0">
+              <div class="panel-head"><h3 id="job-title">Job</h3></div>
+              <p class="answer" id="job-answer" style="margin-top:2px"></p>
+              <div id="job-problem"></div>
+              <div class="subtitle">Where the time went</div>
+              <div class="chart" id="job-split"></div>
+              <div class="legend" id="job-legend"></div>
+              <div class="subtitle">Steps, in order</div>
+              <div class="chart" id="job-steps"></div>
+              <div class="facts" id="job-facts"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel s4">
+          <div class="panel-head"><h3>The job's log</h3><div class="tools" id="log-tools"></div></div>
+          <p class="hint">The important lines: commands, errors, warnings and test results.</p>
+          <div class="feed" id="feed" role="log" aria-live="off"></div>
+          <p class="panel-foot">Names, emails and tokens are removed.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 HEALTH CHECK -->
+    <section class="deck" id="health" aria-labelledby="h-health">
+      <div class="deck-head"><span class="no">04</span><h2 id="h-health">Health check</h2>
+        <p>Why jobs fail, where their time goes, and whether the basic safety settings are in place.</p></div>
+      <div class="grid">
+        <div class="panel s5">
+          <div class="panel-head"><h3>Why do jobs fail?</h3></div>
+          <p class="hint">Failed jobs from the log sample, grouped by cause.</p>
+          <div id="causes"></div>
+        </div>
+        <div class="panel s7">
+          <div class="panel-head"><h3>Where does job time go?</h3></div>
+          <p class="hint">Share of time in successful jobs, read from their logs.</p>
+          <div class="legend" id="time-legend"></div>
+          <div class="chart" id="time-split"></div>
+          <p class="answer" id="time-answer"></p>
+        </div>
+        <div class="panel s12">
+          <div class="panel-head"><h3>Are the safety basics in place?</h3></div>
+          <p class="hint">✓ fine &nbsp; ! worth a look &nbsp; ✕ fix this. Hover a mark for details.</p>
+          <div id="checks"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 TEST AUDIT -->
+    <section class="deck" id="tests" aria-labelledby="h-tests">
+      <div class="deck-head"><span class="no">05</span><h2 id="h-tests">Test audit</h2>
+        <p>For one recent pull request per repository, every test from every job was matched, to find tests that ran more than once.</p></div>
+      <div class="kpis" id="tests-kpis"></div>
+      <div class="grid">
+        <div class="panel s7">
+          <div class="panel-head"><h3>How often does each test run?</h3></div>
+          <p class="hint">Test runs on one pull request commit. Grey is each test once; the rest are repeats.</p>
+          <div class="legend" id="tests-legend"></div>
+          <div class="chart" id="tests-bars"></div>
+        </div>
+        <div class="panel s5">
+          <div class="panel-head"><h3>What should change?</h3></div>
+          <div id="tests-findings"></div>
+        </div>
+        <div class="panel s12">
+          <details>
+            <summary>See every job of one audited commit</summary>
+            <div style="display:flex;gap:8px;align-items:center;margin:12px 0 6px"><span class="muted">Repository</span><select id="tests-repo" aria-label="Repository"></select></div>
+            <p class="answer" id="tests-detail-answer"></p>
+            <div id="tests-detail"></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 AI IMPACT -->
+    <section class="deck" id="ai" aria-labelledby="h-ai">
+      <div class="deck-head"><span class="no">06</span><h2 id="h-ai">AI impact</h2>
+        <p>How much AI writes, reviews and runs code. AI is only counted where it leaves a trace, so real use is higher.</p></div>
+      <div class="kpis" id="ai-kpis"></div>
+      <div class="grid">
+        <div class="panel s6">
+          <div class="panel-head"><h3>Which AI tools write code?</h3></div>
+          <p class="hint">Pull requests that name each tool.</p>
+          <div class="chart" id="ai-tools"></div>
+        </div>
+        <div class="panel s6">
+          <div class="panel-head"><h3>Which AI models are named?</h3></div>
+          <p class="hint">Pull requests that name each model in a commit.</p>
+          <div class="chart" id="ai-models"></div>
+        </div>
+        <div class="panel s8">
+          <div class="panel-head"><h3>Do AI-written changes cause more problems?</h3></div>
+          <p class="hint">Share of pull requests whose first CI run failed, got "changes requested", or were reverted or fixed later.</p>
+          <div class="chart" id="ai-outcomes"></div>
+          <p class="answer" id="ai-outcomes-answer"></p>
+        </div>
+        <div class="panel s4">
+          <div class="panel-head"><h3>Who starts CI runs?</h3></div>
+          <p class="hint">Share of CI time.</p>
+          <div class="chart" id="ai-who"></div>
+          <div class="legend" id="ai-who-legend"></div>
+          <p class="answer" id="ai-who-answer"></p>
+        </div>
+        <div class="panel s12">
+          <div class="panel-head"><h3>How ready is each repository for AI?</h3></div>
+          <div id="ai-repos"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 SOLUTION BOX -->
+    <section class="deck" id="fixes" aria-labelledby="h-fixes">
+      <div class="deck-head"><span class="no">07</span><h2 id="h-fixes">Solution box</h2>
+        <p>Every problem found, with a fix. Work through them in this order:</p></div>
+      <div class="principle" id="sol-principle"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px" id="sol-tools"></div>
+      <div class="solutions" id="solution-cards"></div>
+    </section>
+
+    <!-- 08 METHOD -->
+    <section class="deck" id="method" aria-labelledby="h-method">
+      <div class="deck-head"><span class="no">08</span><h2 id="h-method">How it's measured</h2></div>
+      <div class="method" id="method-body"></div>
+    </section>
+  </main>
+  <footer class="end wrap" id="footer"></footer>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+</div>
+<script type="application/json" id="obs-data">__DATA__</script>
+<script>/*__JS__*/</script>

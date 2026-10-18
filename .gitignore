@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+_site/
+
+# Reports this tool writes; they can describe private repositories
+/ci-observatory/
