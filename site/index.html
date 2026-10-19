@@ -70,7 +70,19 @@
   .eyebrow { font: 500 13px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hud); }
   h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.08; letter-spacing: -0.02em; margin: 14px 0 18px; text-wrap: balance; max-width: 16ch; }
   .lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--ink-2); max-width: 62ch; margin: 0; }
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+  .try {
+    margin-top: 30px; padding: 18px 18px 16px; border: 1px solid rgba(95, 211, 243, 0.45); border-radius: var(--radius);
+    background: var(--hull); box-shadow: 0 0 40px rgba(95, 211, 243, 0.08); display: grid; gap: 10px; max-width: 760px;
+  }
+  .try label { font-weight: 600; font-size: 17px; }
+  .try-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .try input[type="text"] {
+    flex: 1 1 280px; min-width: 0; font: 15.5px var(--mono); color: var(--ink); background: var(--void);
+    border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 14px;
+  }
+  .try input[type="text"]:focus { outline: 2px solid var(--hud); outline-offset: 1px; border-color: transparent; }
+  .try p { margin: 0; color: var(--ink-3); font-size: 14.5px; }
   .btn {
     display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px;
     font: 600 15px var(--sans); text-decoration: none; border: 1px solid var(--line-2); color: var(--ink); background: var(--hull-2);
@@ -183,6 +195,7 @@
       CI Observatory
     </a>
     <nav aria-label="Site">
+      <a href="https://ci-observatory-718558656829.europe-north1.run.app/">Try it</a>
       <a href="demo/">Live demo</a>
       <a href="#install">Install</a>
       <a href="https://github.com/kirbac1/ci-observatory#documentation">Docs</a>
@@ -200,8 +213,19 @@
       what is slow, what fails and why, which tests run twice, how fast you ship, how much AI is involved, and what to
       fix first.
     </p>
+    <form class="try" action="https://ci-observatory-718558656829.europe-north1.run.app/" method="get">
+      <label for="try-repo">Try it on any repository</label>
+      <div class="try-row">
+        <input id="try-repo" name="repo" type="text" placeholder="owner/name or a GitHub link" required spellcheck="false" autocapitalize="off" autocorrect="off">
+        <input type="hidden" name="days" value="30">
+        <input type="hidden" name="run" value="1">
+        <button class="btn primary" type="submit">Analyse →</button>
+      </div>
+      <p>The report is ready in a minute or two. Public repositories work without signing in; sign in with GitHub for private ones.</p>
+    </form>
+
     <div class="cta">
-      <a class="btn primary" href="demo/">Open the live demo →</a>
+      <a class="btn" href="demo/">Open the live demo →</a>
       <a class="btn" href="#install">Install in one line</a>
       <a class="btn" href="https://github.com/kirbac1/ci-observatory">View on GitHub</a>
     </div>
