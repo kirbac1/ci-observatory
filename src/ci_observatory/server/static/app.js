@@ -63,7 +63,10 @@
       if (me.login_enabled) hint.append(' ', el('a', { href: loginHref(), text: 'Sign in with GitHub' }), ' for private ones and fuller samples.');
     } else if (me.login_enabled) {
       hint.append(el('a', { href: loginHref(), text: 'Sign in with GitHub' }), ' to analyse a repository.');
+    } else {
+      hint.append('This server is not set up yet: it has no GitHub sign-in and no token for public repositories.');
     }
+    $('go').disabled = !me.signed_in && !me.anonymous && !me.login_enabled;
   }
 
   async function signOut() {

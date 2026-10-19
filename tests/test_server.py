@@ -206,6 +206,12 @@ def test_without_a_server_token_people_must_sign_in(tmp_path: Path, fake: FakeGi
         assert answer.status_code == 401 and answer.json()["login"] is True
 
 
+def test_a_server_with_neither_sign_in_nor_a_token_says_it_is_not_set_up(tmp_path: Path, fake: FakeGitHub) -> None:
+    with TestClient(create_app(settings(tmp_path, server_token="", client_id=""))) as client:
+        answer = client.post("/api/analyses", json={"repo": "acme/api"}, headers=ORIGIN)
+        assert answer.status_code == 503 and "not set up" in answer.json()["error"] and "login" not in answer.json()
+
+
 def test_the_analysis_never_sees_the_servers_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CIO_CLIENT_SECRET", "client-secret")
     monkeypatch.setenv("CIO_SERVER_TOKEN", "server-token")

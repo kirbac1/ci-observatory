@@ -38,6 +38,7 @@ DAYS = (7, 14, 30, 60, 90)
 SESSION_COOKIE = "cio_session"
 STATE_COOKIE = "cio_state"
 SESSION_HOURS = 8
+NOT_SET_UP = "This server is not set up yet: it has no GitHub sign-in and no token for public repositories."
 STATIC = {"app.css": "text/css", "app.js": "text/javascript", "favicon.svg": "image/svg+xml"}
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; "
@@ -255,8 +256,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session = sessions.get(request)
         signed_in = bool(session and session.signed_in)
         token = session.token if session and signed_in else settings.server_token
+        if not token and not settings.login_enabled:
+            return problem(503, NOT_SET_UP)
         if not token:
-            return problem(401, "Sign in with GitHub to analyse a repository.", login=settings.login_enabled)
+            return problem(401, "Sign in with GitHub to analyse a repository.", login=True)
         try:
             found = await asyncio.to_thread(github.repo, settings, name, token)
         except github.GitHubError as exc:
