@@ -158,9 +158,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings, app.state.jobs, app.state.sessions = settings, jobs, sessions
 
+    public_host = settings.origin.split("://", 1)[1]
+
     @app.middleware("http")
     async def headers(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         started = time.monotonic()
+        host = request.headers.get("host", "")
+        if request.method == "GET" and host != public_host and not host.startswith(("127.0.0.1", "localhost", "testserver")):
+            # Another address of the same service (Cloud Run has two): sign-in and the origin check only work on one.
+            return RedirectResponse(settings.public_url.rstrip("/") + request.url.path, 301)
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -194,8 +200,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         body = resources.files("ci_observatory.server").joinpath(f"static/{name}").read_bytes()
         return Response(body, media_type=STATIC[name], headers={"Cache-Control": "public, max-age=300"})
 
-    @app.get("/healthz", include_in_schema=False)
-    async def healthz() -> dict[str, Any]:
+    @app.get("/health", include_in_schema=False)
+    @app.get("/healthz", include_in_schema=False)  # Cloud Run's front end keeps /healthz for itself; use /health there
+    async def health() -> dict[str, Any]:
         running = sum(1 for j in jobs.jobs.values() if j.status == "running")
         return {"ok": True, "running": running, "queued": jobs.waiting()}
 

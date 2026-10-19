@@ -98,7 +98,19 @@ Everything is an environment variable.
 
 ## Register the GitHub App
 
-Do this once, on the account or organisation that will own the app. It takes about five minutes.
+Do this once, on the account or organisation that will own the app.
+
+**The quick way** is the setup script. It opens a page on your machine that creates the app through GitHub's
+manifest flow (you confirm once on github.com), then asks for the public-data token, checks that it cannot read any
+private repository, and stores both. With `--cloud-run`, they go straight into Secret Manager and onto the service;
+without it, into `./ci-observatory.env`:
+
+```sh
+python3 scripts/setup-github-app.py --public-url https://YOUR-SERVICE-URL \
+  --cloud-run ci-observatory --region europe-north1 --project MY_PROJECT
+```
+
+**By hand** it takes about five minutes:
 
 1. Open **Settings → Developer settings → GitHub Apps → New GitHub App**
    (<https://github.com/settings/apps/new>, or the same page under an organisation's settings).
@@ -185,7 +197,8 @@ requests.
    `CIO_PUBLIC_URL` (`gcloud run services update ci-observatory --region europe-north1 --update-env-vars CIO_PUBLIC_URL=...`)
    and put `<url>/auth/callback` in the GitHub App's callback URLs.
 
-4. Check it: `curl <url>/healthz` answers `{"ok": true, ...}`, and the page opens at `<url>`.
+4. Check it: `curl <url>/health` answers `{"ok": true, ...}`, and the page opens at `<url>`. (Cloud Run keeps
+   `/healthz` for itself, so use `/health` there.)
 
 To use your own domain, map it to the service (Cloud Run domain mappings, or a load balancer), then change
 `CIO_PUBLIC_URL` and the app's callback URL to match.

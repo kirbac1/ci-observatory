@@ -61,7 +61,7 @@ jobs:
         run: |
           docker run -d --name app -p 8080:8080 -e CIO_PUBLIC_URL=http://localhost:8080 ci-observatory:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8080/healthz; then
+            if curl -fsS http://localhost:8080/health; then
               curl -fsS http://localhost:8080/ | grep -q "Analyse a repository"
               if docker exec app sh -c 'command -v gh'; then echo "::error::gh should not be in the image"; exit 1; fi
               exit 0

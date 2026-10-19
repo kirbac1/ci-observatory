@@ -225,3 +225,9 @@ def test_progress_lines_hide_server_paths_and_terminal_hints(tmp_path: Path) -> 
     assert jobs._clean(job, f"Open it with: open {out}/index.html") is None
     private = jobs._clean(job, f"  acme/secret is private: its data stays in {out}/ on this machine.")
     assert private is not None and "shown only to you" in private and out not in private
+
+
+def test_other_addresses_of_the_service_redirect_to_the_public_one(client: TestClient) -> None:
+    moved = client.get("/r/abc", headers={"Host": "ci-observatory-abc-lz.a.run.app"}, follow_redirects=False)
+    assert moved.status_code == 301 and moved.headers["location"] == "http://testserver/r/abc"
+    assert client.get("/health").json()["ok"] is True
