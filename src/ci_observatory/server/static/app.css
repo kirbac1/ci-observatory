@@ -64,6 +64,7 @@ code, pre { font-family: var(--mono); }
 h1 { font-size: clamp(32px, 5vw, 50px); line-height: 1.1; letter-spacing: -0.02em; margin: 12px 0 14px; text-wrap: balance; }
 h2 { font-size: 22px; margin: 4px 0 0; overflow-wrap: anywhere; }
 .lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--ink-2); max-width: 62ch; margin: 0; }
+.lede code { font: 0.92em var(--mono); color: var(--ink); }
 
 .ask { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
 .ask input, .ask select {

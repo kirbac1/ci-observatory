@@ -4,6 +4,11 @@ The web app runs the same analysis on a server, so people can use CI Observatory
 paste a repository, watch the analysis run, and get the report in the browser. Public repositories work without
 signing in. Signing in with GitHub lets people analyse private repositories they can read.
 
+An owner works too: type `aiven` (or paste `github.com/aiven`) and the report covers that user's or organisation's
+public repositories together: those pushed to in the window with at least 3 CI runs, the busiest 15 (25 when signed
+in). An owner's report always covers public repositories only, even for people who are signed in, so it can be shared
+and reused like any public report. It may take twice as long as one repository before the server stops it.
+
 ![The web app analysing aiven/aiven-client: four steps with live progress](../site/assets/app.jpg)
 
 - [How it works](#how-it-works)
@@ -152,7 +157,8 @@ nothing else, so a mistake can never expose a private repository:
    public data.
 3. Set an expiry date, generate it, and store it as a secret.
 
-It gets 5,000 API calls an hour. A quick analysis of one repository uses about 30 to 150.
+It gets 5,000 API calls an hour. A quick analysis of one repository uses about 30 to 150; an owner's uses more,
+one listing call per active repository plus the analysis of each one it keeps.
 
 ## Deploy to Google Cloud Run
 

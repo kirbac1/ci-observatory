@@ -78,7 +78,7 @@
     const rows = await fetch('/api/recent').then((r) => r.json()).catch(() => []);
     const list = $('recent');
     list.replaceChildren(...rows.map((row) => el('li', null, el('a', { href: row.report_url },
-      el('b', { text: row.repo }), el('span', { text: `${row.days} days · ${ago(row.finished)}` })))));
+      el('b', { text: row.repo }), el('span', { text: `${row.whole_owner ? 'all public · ' : ''}${row.days} days · ${ago(row.finished)}` })))));
     $('recent-wrap').hidden = rows.length === 0;
   }
 
@@ -109,7 +109,7 @@
   function show(view) {
     current = view;
     $('job').hidden = false;
-    $('job-title').textContent = view.repo + (view.private ? ' · private' : '');
+    $('job-title').textContent = view.repo + (view.private ? ' · private' : '') + (view.whole_owner ? ' · public repositories' : '');
     const states = { queued: view.position ? `Waiting · number ${view.position} in line` : 'Waiting', running: 'Analysing', done: 'Done', failed: 'Stopped', cancelled: 'Cancelled' };
     $('job-state').textContent = states[view.status] || view.status;
     $('cancel').hidden = !['queued', 'running'].includes(view.status) || !view.mine;
@@ -166,7 +166,7 @@
     if (ev) ev.preventDefault();
     message('');
     const repo = $('repo').value.trim();
-    if (!repo) { message('Type a repository, such as cli/cli.'); $('repo').focus(); return; }
+    if (!repo) { message('Type a repository such as cli/cli, or an owner such as aiven.'); $('repo').focus(); return; }
     $('go').disabled = true;
     let res, body;
     try {

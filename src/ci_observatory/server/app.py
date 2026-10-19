@@ -46,6 +46,8 @@ CSP = (
     "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 )
 GITHUB_URL = re.compile(r"^(?:https?://)?(?:www\.)?github\.com/([^/\s]+)/([^/\s#?]+)", re.I)
+GITHUB_OWNER_URL = re.compile(r"^(?:https?://)?(?:www\.)?github\.com/([^/\s#?]+)/?(?:[#?].*)?$", re.I)
+OWNER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,38}$")
 
 
 @dataclass
@@ -112,6 +114,14 @@ def parse_repo(text: str) -> str | None:
     name = f"{match.group(1)}/{match.group(2)}" if match else text
     name = name.removesuffix("/").removesuffix(".git")
     return name if REPO.match(name) and len(name) <= 140 else None
+
+
+def parse_owner(text: str) -> str | None:
+    """A user or organisation from "aiven", "aiven/", "@aiven" or "github.com/aiven", or None."""
+    text = text.strip()
+    match = GITHUB_OWNER_URL.match(text)
+    name = match.group(1) if match else text.removeprefix("@").removesuffix("/")
+    return name if OWNER.match(name) else None
 
 
 def client_ip(request: Request) -> str:
@@ -249,8 +259,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def start(body: AnalysisIn, request: Request) -> Response:
         same_origin(request)
         name = parse_repo(body.repo)
-        if not name:
-            return problem(400, "Give a repository as owner/name, or paste its GitHub address.")
+        owner = None if name else parse_owner(body.repo)
+        if not name and not owner:
+            return problem(400, "Give a repository as owner/name, an owner such as aiven, or a GitHub address.")
         if body.days not in DAYS:
             return problem(400, f"Pick one of {', '.join(map(str, DAYS))} days.")
         session = sessions.get(request)
@@ -261,14 +272,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not token:
             return problem(401, "Sign in with GitHub to analyse a repository.", login=True)
         try:
-            found = await asyncio.to_thread(github.repo, settings, name, token)
+            found = await asyncio.to_thread(github.repo, settings, name, token) if name else None
+            login = await asyncio.to_thread(github.owner, settings, owner, token) if owner else None
         except github.GitHubError as exc:
             if exc.status in (403, 429):
                 return problem(
                     503, "GitHub's rate limit is used up for now. Try again later, or sign in.", login=not signed_in
                 )
             return problem(502, "GitHub could not be reached. Try again in a moment.")
-        if found is None or (found.private and not signed_in):
+        if owner:
+            # A whole owner always means its public repositories, so the report can be shared and reused.
+            if login is None:
+                return problem(404, f"There is no GitHub user or organisation called {owner}.")
+            target, private = login, False
+        elif found is None or (found.private and not signed_in):
             if signed_in:
                 hint = "For a private repository, install the app on its owner and give it access to this repository."
                 return problem(
@@ -276,9 +293,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
             hint = " If it is private, sign in with GitHub." if settings.login_enabled else ""
             return problem(404, f"{name} was not found.{hint}", login=settings.login_enabled)
+        else:
+            target, private = found.full_name, found.private
 
         quick = not signed_in  # the shared server token stretches further with smaller samples
-        if not found.private and (reuse := jobs.reusable(found.full_name, body.days, quick)):
+        if not private and (reuse := jobs.reusable(target, body.days, quick)):
             return JSONResponse(reuse.view(jobs.position(reuse)))
 
         fresh = session is None
@@ -307,7 +326,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if jobs.waiting() >= settings.queue_limit:
             return problem(503, "Many analyses are waiting already. Try again in a few minutes.")
 
-        job = jobs.submit(found.full_name, body.days, private=found.private, owner=session.id, quick=quick, token=token)
+        job = jobs.submit(target, body.days, private=private, owner=session.id, quick=quick, token=token)
         response = JSONResponse(job.view(jobs.position(job)), status_code=202)
         if fresh:
             sessions.cookie(response, session)

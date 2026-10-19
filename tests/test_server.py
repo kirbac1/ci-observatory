@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ci_observatory.server import github
-from ci_observatory.server.app import create_app, parse_repo
+from ci_observatory.server.app import create_app, parse_owner, parse_repo
 from ci_observatory.server.config import Settings
 from ci_observatory.server.jobs import Job, Jobs
 
@@ -30,7 +30,7 @@ print("Open it with: open " + str(out / "index.html"), flush=True)
 
 
 class FakeGitHub:
-    """Public "acme/api", private "acme/secret" (readable only with the user's token), nothing else."""
+    """Public "acme/api", private "acme/secret" (readable only with the user's token), the owner "Acme", nothing else."""
 
     def __init__(self) -> None:
         self.revoked: list[str] = []
@@ -41,6 +41,9 @@ class FakeGitHub:
         if name.lower() == "acme/secret" and token in ("user-token", "server-token"):
             return github.Repo("acme/secret", private=True, owner_id=1)
         return None
+
+    def owner(self, settings: Settings, name: str, token: str | None) -> str | None:
+        return "Acme" if name.lower() == "acme" else None
 
     def exchange_code(self, settings: Settings, code: str, verifier: str) -> dict[str, Any]:
         if code != "good-code":
@@ -57,7 +60,7 @@ class FakeGitHub:
 @pytest.fixture
 def fake(monkeypatch: pytest.MonkeyPatch) -> FakeGitHub:
     gh = FakeGitHub()
-    for name in ("repo", "exchange_code", "user", "revoke"):
+    for name in ("repo", "owner", "exchange_code", "user", "revoke"):
         monkeypatch.setattr(github, name, getattr(gh, name))
     monkeypatch.setattr(github, "quota", lambda settings, token: 5000)
     monkeypatch.setattr(Jobs, "command", lambda self, job: [sys.executable, "-c", FAKE_ANALYSIS, str(job.dir / "out")])
@@ -105,6 +108,16 @@ def test_parse_repo_accepts_names_and_github_links() -> None:
     assert parse_repo("not a repo") is None
     assert parse_repo("../etc/passwd") is None
     assert parse_repo("https://gitlab.com/a/b") is None
+
+
+def test_parse_owner_accepts_accounts_and_their_github_links() -> None:
+    assert parse_owner("aiven") == "aiven"
+    assert parse_owner(" aiven/ ") == "aiven"
+    assert parse_owner("@iceye-ltd") == "iceye-ltd"
+    assert parse_owner("https://github.com/aiven?tab=repositories") == "aiven"
+    assert parse_owner("github.com/aiven/aiven-client") is None
+    assert parse_owner("not an owner") is None
+    assert parse_owner("../etc") is None
 
 
 def test_settings_come_from_the_environment(tmp_path: Path) -> None:
@@ -210,6 +223,23 @@ def test_a_server_with_neither_sign_in_nor_a_token_says_it_is_not_set_up(tmp_pat
     with TestClient(create_app(settings(tmp_path, server_token="", client_id=""))) as client:
         answer = client.post("/api/analyses", json={"repo": "acme/api"}, headers=ORIGIN)
         assert answer.status_code == 503 and "not set up" in answer.json()["error"] and "login" not in answer.json()
+
+
+def test_an_owner_analyses_its_public_repositories_together(client: TestClient) -> None:
+    answer = client.post("/api/analyses", json={"repo": "acme/", "days": 30}, headers=ORIGIN)
+    assert answer.status_code == 202
+    view = answer.json()
+    assert view["repo"] == "Acme" and view["whole_owner"] and not view["private"]
+    missing = client.post("/api/analyses", json={"repo": "nobody-here"}, headers=ORIGIN)
+    assert missing.status_code == 404 and "nobody-here" in missing.json()["error"]
+
+
+def test_an_owner_analysis_reads_only_public_repositories(tmp_path: Path) -> None:
+    jobs = Jobs(settings(tmp_path))
+    job = Job(id="j", repo="acme", days=30, private=False, owner="s", quick=True, dir=tmp_path / "j")
+    cmd = list(jobs.command(job))
+    assert cmd[cmd.index("--org") + 1] == "acme" and cmd[cmd.index("--visibility") + 1] == "public"
+    assert "--repo" not in cmd and "--quick" in cmd
 
 
 def test_the_analysis_never_sees_the_servers_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

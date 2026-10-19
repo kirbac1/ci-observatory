@@ -1,6 +1,6 @@
-"""The few GitHub calls the web server makes itself: the sign-in exchange, who is signed in, whether a repository can
-be read, how much API quota is left, and revoking a token at sign-out. The analyses themselves run the pipeline in a
-subprocess. These calls are blocking; the app runs them in a thread."""
+"""The few GitHub calls the web server makes itself: the sign-in exchange, who is signed in, whether a repository or an
+owner can be read, how much API quota is left, and revoking a token at sign-out. The analyses themselves run the
+pipeline in a subprocess. These calls are blocking; the app runs them in a thread."""
 
 import base64
 import contextlib
@@ -104,6 +104,16 @@ def repo(settings: Settings, name: str, token: str | None) -> Repo | None:
     if status != 200 or not isinstance(body, dict):
         raise GitHubError(status, f"GitHub answered {status} for {name}")
     return Repo(full_name=body["full_name"], private=bool(body.get("private")), owner_id=int(body["owner"]["id"]))
+
+
+def owner(settings: Settings, name: str, token: str | None) -> str | None:
+    """The user or organisation's login as GitHub spells it, or None when there is no such account."""
+    status, body = _api(settings, f"users/{name}", token)
+    if status == 404:
+        return None
+    if status != 200 or not isinstance(body, dict):
+        raise GitHubError(status, f"GitHub answered {status} for {name}")
+    return str(body["login"])
 
 
 def quota(settings: Settings, token: str | None) -> int | None:

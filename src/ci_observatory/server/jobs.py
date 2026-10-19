@@ -23,6 +23,11 @@ from ci_observatory.server.config import Settings
 
 FINAL = frozenset({"done", "failed", "cancelled"})
 MAX_LINES = 2000
+# An owner's analysis covers its busiest public repositories with CI in the window, up to these many. Each one costs
+# about 80 API calls, and 10 of Aiven's took about 4 minutes, so owners also get twice the time of one repository.
+OWNER_TOP_QUICK = 15
+OWNER_TOP = 25
+OWNER_MIN_RUNS = 3
 #: Passed through to the subprocess; nothing else from the server's environment is.
 SAFE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT", "SSL_CERT_FILE", "SSL_CERT_DIR")
 
@@ -49,6 +54,11 @@ class Job:
     def report(self) -> Path:
         return self.dir / "out" / "index.html"
 
+    @property
+    def whole_owner(self) -> bool:
+        """An owner's public repositories together, rather than one repository."""
+        return "/" not in self.repo
+
     def notify(self) -> None:
         self._changed.set()
         self._changed = asyncio.Event()
@@ -65,6 +75,7 @@ class Job:
         return {
             "id": self.id,
             "repo": self.repo,
+            "whole_owner": self.whole_owner,
             "days": self.days,
             "private": self.private,
             "quick": self.quick,
@@ -143,7 +154,15 @@ class Jobs:
             if (job.repo.lower(), job.days) in seen:
                 continue
             seen.add((job.repo.lower(), job.days))
-            rows.append({"repo": job.repo, "days": job.days, "finished": job.finished, "report_url": f"/r/{job.id}"})
+            rows.append(
+                {
+                    "repo": job.repo,
+                    "whole_owner": job.whole_owner,
+                    "days": job.days,
+                    "finished": job.finished,
+                    "report_url": f"/r/{job.id}",
+                }
+            )
         return rows[:limit]
 
     # ------------------------------------------------------------------ running
@@ -161,8 +180,13 @@ class Jobs:
 
     def command(self, job: Job) -> Sequence[str]:
         """The analysis itself: the same command people run on their own machines."""
-        cmd = [sys.executable, "-m", "ci_observatory.cli", "--repo", job.repo, "--days", str(job.days)]
-        cmd += ["--out", str(job.dir / "out"), "--title", f"CI Observatory: {job.repo}"]
+        cmd = [sys.executable, "-m", "ci_observatory.cli", "--days", str(job.days), "--out", str(job.dir / "out")]
+        if job.whole_owner:
+            top = OWNER_TOP_QUICK if job.quick else OWNER_TOP
+            cmd += ["--org", job.repo, "--visibility", "public", "--top", str(top), "--min-runs", str(OWNER_MIN_RUNS)]
+            cmd += ["--title", f"CI Observatory: {job.repo}'s public repositories"]
+        else:
+            cmd += ["--repo", job.repo, "--title", f"CI Observatory: {job.repo}"]
         cmd += ["--max-calls", "1500" if job.quick else "4000"]
         return [*cmd, "--quick"] if job.quick else cmd
 
@@ -199,12 +223,13 @@ class Jobs:
                 return
             job.status, job.started = "running", time.time()
             job.notify()
+            limit = self.settings.job_timeout * (2 if job.whole_owner else 1)
             try:
-                await asyncio.wait_for(self._execute(job, token), self.settings.job_timeout)
+                await asyncio.wait_for(self._execute(job, token), limit)
             except TimeoutError:
                 await self._stop(job)
                 job.status = "failed"
-                job.error = f"The analysis took longer than {self.settings.job_timeout // 60} minutes and was stopped."
+                job.error = f"The analysis took longer than {limit // 60} minutes and was stopped."
             except Exception as exc:  # the server must outlive any single analysis
                 await self._stop(job)
                 job.status, job.error = "failed", f"The analysis could not run: {exc}"

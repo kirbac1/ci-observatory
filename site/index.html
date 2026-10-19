@@ -214,14 +214,14 @@
       fix first.
     </p>
     <form class="try" action="https://ci-observatory-718558656829.europe-north1.run.app/" method="get">
-      <label for="try-repo">Try it on any repository</label>
+      <label for="try-repo">Try it on any repository or owner</label>
       <div class="try-row">
-        <input id="try-repo" name="repo" type="text" placeholder="owner/name or a GitHub link" required spellcheck="false" autocapitalize="off" autocorrect="off">
+        <input id="try-repo" name="repo" type="text" placeholder="owner/name, or an owner such as aiven" required spellcheck="false" autocapitalize="off" autocorrect="off">
         <input type="hidden" name="days" value="30">
         <input type="hidden" name="run" value="1">
         <button class="btn primary" type="submit">Analyse →</button>
       </div>
-      <p>The report is ready in a minute or two. Public repositories work without signing in; sign in with GitHub for private ones.</p>
+      <p>The report is ready in a minute or two. An owner covers all of its active public repositories in one report. Public repositories work without signing in; sign in with GitHub for private ones.</p>
     </form>
 
     <div class="cta">

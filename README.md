@@ -131,9 +131,10 @@ usage, or `gh` is missing or not logged in.
 ## The web app
 
 The same analysis also runs as a small web service, live at
-<https://ci-observatory-718558656829.europe-north1.run.app/>: paste a repository, watch it run, read the report. Public
-repositories work without signing in; signing in with GitHub (a read-only GitHub App) adds private repositories. The
-token stays on the server and is revoked at sign-out, and private reports are shown only to the person who asked.
+<https://ci-observatory-718558656829.europe-north1.run.app/>: paste a repository, or an owner such as `aiven` for all of
+its public repositories, watch it run, read the report. Public repositories work without signing in; signing in with
+GitHub (a read-only GitHub App) adds private repositories. The token stays on the server and is revoked at sign-out,
+and private reports are shown only to the person who asked.
 
 ```sh
 CIO_SERVER_TOKEN=$(gh auth token) uv run --extra server python -m ci_observatory.server   # http://localhost:8000
