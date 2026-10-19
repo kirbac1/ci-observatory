@@ -48,6 +48,7 @@ CSP = (
 GITHUB_URL = re.compile(r"^(?:https?://)?(?:www\.)?github\.com/([^/\s]+)/([^/\s#?]+)", re.I)
 GITHUB_OWNER_URL = re.compile(r"^(?:https?://)?(?:www\.)?github\.com/([^/\s#?]+)/?(?:[#?].*)?$", re.I)
 OWNER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,38}$")
+MAX_OWNERS = 3
 
 
 @dataclass
@@ -122,6 +123,19 @@ def parse_owner(text: str) -> str | None:
     match = GITHUB_OWNER_URL.match(text)
     name = match.group(1) if match else text.removeprefix("@").removesuffix("/")
     return name if OWNER.match(name) else None
+
+
+def parse_owners(text: str) -> list[str] | None:
+    """Up to MAX_OWNERS owners separated by commas, plus signs or spaces ("aiven, Aiven-Open"), or None."""
+    parts = [part for part in re.split(r"[\s,+]+", text.strip()) if part]
+    owners: list[str] = []
+    for part in parts:
+        owner = parse_owner(part)
+        if owner is None:
+            return None
+        if owner.lower() not in {o.lower() for o in owners}:
+            owners.append(owner)
+    return owners if 0 < len(owners) <= MAX_OWNERS else None
 
 
 def client_ip(request: Request) -> str:
@@ -259,9 +273,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def start(body: AnalysisIn, request: Request) -> Response:
         same_origin(request)
         name = parse_repo(body.repo)
-        owner = None if name else parse_owner(body.repo)
-        if not name and not owner:
-            return problem(400, "Give a repository as owner/name, an owner such as aiven, or a GitHub address.")
+        owners = None if name else parse_owners(body.repo)
+        if not name and not owners:
+            return problem(
+                400,
+                "Give a repository as owner/name, an owner such as aiven (or a few: aiven, Aiven-Open), or a GitHub"
+                " address.",
+            )
         if body.days not in DAYS:
             return problem(400, f"Pick one of {', '.join(map(str, DAYS))} days.")
         session = sessions.get(request)
@@ -273,18 +291,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return problem(401, "Sign in with GitHub to analyse a repository.", login=True)
         try:
             found = await asyncio.to_thread(github.repo, settings, name, token) if name else None
-            login = await asyncio.to_thread(github.owner, settings, owner, token) if owner else None
+            logins = [await asyncio.to_thread(github.owner, settings, owner, token) for owner in owners or []]
         except github.GitHubError as exc:
             if exc.status in (403, 429):
                 return problem(
                     503, "GitHub's rate limit is used up for now. Try again later, or sign in.", login=not signed_in
                 )
             return problem(502, "GitHub could not be reached. Try again in a moment.")
-        if owner:
+        if owners:
             # A whole owner always means its public repositories, so the report can be shared and reused.
-            if login is None:
-                return problem(404, f"There is no GitHub user or organisation called {owner}.")
-            target, private = login, False
+            missing = [owner for owner, login in zip(owners, logins, strict=True) if login is None]
+            if missing:
+                return problem(404, f"There is no GitHub user or organisation called {missing[0]}.")
+            target, private = ", ".join(sorted((str(login) for login in logins), key=str.lower)), False
         elif found is None or (found.private and not signed_in):
             if signed_in:
                 hint = "For a private repository, install the app on its owner and give it access to this repository."
@@ -321,6 +340,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return problem(
                     503,
                     "The shared GitHub quota is used up for this hour. Sign in to use your own.",
+                    login=settings.login_enabled,
+                )
+            if owners and left is not None and left < settings.min_owner_quota:
+                return problem(
+                    503,
+                    "The shared GitHub quota is too low for a whole owner right now. Try one repository, come back"
+                    " within the hour, or sign in to use your own.",
                     login=settings.login_enabled,
                 )
         if jobs.waiting() >= settings.queue_limit:

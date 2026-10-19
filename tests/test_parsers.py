@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from ci_observatory import report
+from ci_observatory.actions import discover
 from ci_observatory.cli import shareable
 from ci_observatory.logs import (
     AuditJob,
@@ -184,3 +185,34 @@ def test_report_data_cannot_close_its_script_tag() -> None:
 def test_shared_command_leaves_out_local_options() -> None:
     argv = ["--org", "acme", "--out", "/Users/someone/reports", "--title", "Payments CI", "--open", "--out=/tmp/x"]
     assert shareable(argv) == "ci-observatory --org acme --title 'Payments CI'"
+
+
+class ListingGh:
+    """Discovery's view of one organisation: an active repository, a fork, an archived one, and an idle one."""
+
+    def json(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        fresh, idle = "2026-10-10T00:00:00Z", "2025-01-01T00:00:00Z"
+
+        def repo(name: str, pushed: str, fork: bool = False, archived: bool = False) -> dict[str, Any]:
+            return {"full_name": name, "fork": fork, "archived": archived, "pushed_at": pushed, "visibility": "public"}
+
+        if path == "user":
+            return {"login": "me"}
+        if path == "orgs/acme":
+            return {"login": "acme"}
+        if path == "orgs/acme/repos" and (params or {}).get("page") == 1:
+            return [
+                repo("acme/api", fresh),
+                repo("acme/kafka", fresh, fork=True),
+                repo("acme/old", fresh, archived=True),
+                repo("acme/cron", idle),
+            ]
+        return []
+
+
+def test_discovery_keeps_forks_and_idle_repositories_only_when_asked() -> None:
+    since = datetime(2026, 9, 19, tzinfo=UTC)
+    gh: Any = ListingGh()
+    assert [r["full_name"] for r in discover(gh, ["acme"], since, "public")] == ["acme/api"]
+    every = [r["full_name"] for r in discover(gh, ["acme"], since, "public", all_active=True)]
+    assert every == ["acme/api", "acme/kafka", "acme/cron"]

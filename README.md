@@ -93,6 +93,7 @@ ci-observatory --open
 | The 12 busiest repositories of an organisation | `ci-observatory --org my-org` |
 | The 25 busiest, private ones only | `ci-observatory --org my-org --top 25 --visibility private` |
 | Several organisations in one report | `ci-observatory --org my-org --org my-other-org` |
+| Every repository that ran CI, forks and scheduled-only ones too | `ci-observatory --org my-org --all-active --top 100 --min-runs 1` |
 | Your own account, private repositories included | `ci-observatory --org my-login` |
 | A fast first look | `ci-observatory --org my-org --quick` |
 | The last 60 days | `ci-observatory --org my-org --days 60` |
@@ -111,6 +112,8 @@ ci-observatory [--org ORG]... [--repo OWNER/NAME]... [options]
   --min-runs MIN_RUNS   with --org: skip repositories with fewer runs (default 10)
   --visibility {all,public,private}
                         with --org: which repositories (default all)
+  --all-active          with --org: also forks and repositories nobody pushed to,
+                        if they ran CI in the window
   --days DAYS           look back this many days (default 30)
   --out OUT             output folder (default ./ci-observatory)
   --title TITLE         report heading (default: CI Observatory)

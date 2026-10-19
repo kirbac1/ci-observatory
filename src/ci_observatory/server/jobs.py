@@ -23,11 +23,13 @@ from ci_observatory.server.config import Settings
 
 FINAL = frozenset({"done", "failed", "cancelled"})
 MAX_LINES = 2000
-# An owner's analysis covers its busiest public repositories with CI in the window, up to these many. Each one costs
-# about 80 API calls, and 10 of Aiven's took about 4 minutes, so owners also get twice the time of one repository.
-OWNER_TOP_QUICK = 15
-OWNER_TOP = 25
+# An owner's analysis covers every public repository that ran CI in the window (forks and ones with only scheduled
+# runs too), the busiest first, up to these many. Each costs about 90 API calls, so without signing in the shared token
+# can afford one large owner an hour (see min_owner_quota); owners also get twice the time of one repository.
+OWNER_TOP_QUICK = 60
+OWNER_TOP = 100
 OWNER_MIN_RUNS = 3
+OWNER_CALLS_QUICK = 2000
 #: Passed through to the subprocess; nothing else from the server's environment is.
 SAFE_ENV = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT", "SSL_CERT_FILE", "SSL_CERT_DIR")
 
@@ -56,8 +58,12 @@ class Job:
 
     @property
     def whole_owner(self) -> bool:
-        """An owner's public repositories together, rather than one repository."""
+        """One or more owners' public repositories together ("aiven, Aiven-Open"), rather than one repository."""
         return "/" not in self.repo
+
+    @property
+    def owners(self) -> list[str]:
+        return [owner.strip() for owner in self.repo.split(",")] if self.whole_owner else []
 
     def notify(self) -> None:
         self._changed.set()
@@ -182,12 +188,17 @@ class Jobs:
         """The analysis itself: the same command people run on their own machines."""
         cmd = [sys.executable, "-m", "ci_observatory.cli", "--days", str(job.days), "--out", str(job.dir / "out")]
         if job.whole_owner:
+            for owner in job.owners:
+                cmd += ["--org", owner]
             top = OWNER_TOP_QUICK if job.quick else OWNER_TOP
-            cmd += ["--org", job.repo, "--visibility", "public", "--top", str(top), "--min-runs", str(OWNER_MIN_RUNS)]
-            cmd += ["--title", f"CI Observatory: {job.repo}'s public repositories"]
+            cmd += ["--visibility", "public", "--all-active", "--top", str(top), "--min-runs", str(OWNER_MIN_RUNS)]
+            *rest, last = job.owners
+            whose = f"{last}'s public repositories" if not rest else f"public repositories of {', '.join(rest)} and {last}"
+            cmd += ["--title", f"CI Observatory: {whose}"]
         else:
             cmd += ["--repo", job.repo, "--title", f"CI Observatory: {job.repo}"]
-        cmd += ["--max-calls", "1500" if job.quick else "4000"]
+        quick_calls = OWNER_CALLS_QUICK if job.whole_owner else 1500
+        cmd += ["--max-calls", str(quick_calls if job.quick else 4000)]
         return [*cmd, "--quick"] if job.quick else cmd
 
     def environment(self, job: Job, token: str) -> dict[str, str]:

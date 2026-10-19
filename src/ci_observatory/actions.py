@@ -165,15 +165,26 @@ def weeks_between(start: datetime, end: datetime) -> list[str]:
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-def discover(gh: Gh, orgs: Sequence[str], since: datetime, visibility: str = "all") -> list[dict[str, Any]]:
+# With --all-active, how many repositories per owner are checked for CI runs.
+ALL_ACTIVE_LIMIT = 300
+
+
+def discover(
+    gh: Gh, orgs: Sequence[str], since: datetime, visibility: str = "all", all_active: bool = False
+) -> list[dict[str, Any]]:
     """Active, non-fork, non-archived repositories pushed to inside the window. `orgs` may also name user accounts:
-    your own account lists your private repositories too, other users' accounts list their public ones."""
+    your own account lists your private repositories too, other users' accounts list their public ones.
+
+    With `all_active`, forks and repositories nobody pushed to are kept as well, because they may still run CI (on a
+    schedule, or to test an upstream): up to ALL_ACTIVE_LIMIT per owner, most recently pushed first. Whether they ran
+    CI in the window is checked afterwards, one call per repository."""
     try:
         me = str((gh.json("user") or {}).get("login") or "")
     except GhError:
         me = ""  # a GitHub Actions token cannot read /user
     found: list[dict[str, Any]] = []
     for org in orgs:
+        kept = 0
         if org.lower() == str(me).lower():
             path, params = "user/repos", {"affiliation": "owner", "visibility": visibility}
         elif gh.json(f"orgs/{org}") is not None:
@@ -185,13 +196,18 @@ def discover(gh: Gh, orgs: Sequence[str], since: datetime, visibility: str = "al
             if not batch:
                 break
             for repo in batch:
+                if all_active and kept >= ALL_ACTIVE_LIMIT:
+                    break
                 pushed = parse_time(repo.get("pushed_at"))
-                if repo["fork"] or repo["archived"] or repo.get("disabled") or pushed is None or pushed < since:
+                if repo["archived"] or repo.get("disabled"):
+                    continue
+                if not all_active and (repo["fork"] or pushed is None or pushed < since):
                     continue
                 if visibility != "all" and repo.get("visibility", "public") != visibility:
                     continue
                 found.append({"full_name": repo["full_name"], "language": repo.get("language")})
-            if len(batch) < 100:
+                kept += 1
+            if len(batch) < 100 or (all_active and kept >= ALL_ACTIVE_LIMIT):
                 break
     return found
 
@@ -810,7 +826,7 @@ def pick_repos(gh: Gh, args: argparse.Namespace, since: datetime) -> list[tuple[
             info = gh.json(f"repos/{name}")
             languages[name] = (info or {}).get("language")
         return [(name, languages[name], None) for name in args.repos]
-    candidates = discover(gh, args.orgs, since, args.visibility)
+    candidates = discover(gh, args.orgs, since, args.visibility, args.all_active)
     with ThreadPoolExecutor(max_workers=4) as pool:
         counts = list(pool.map(lambda c: count_runs(gh, c["full_name"], since), candidates))
     ranked: list[tuple[str, str | None, int | None]] = [
@@ -1026,6 +1042,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--visibility", choices=("all", "public", "private"), default="all", help="which repositories discovery keeps"
     )
     parser.add_argument("--repos", nargs="+", metavar="OWNER/NAME", help="scan exactly these, skipping discovery")
+    parser.add_argument(
+        "--all-active",
+        action="store_true",
+        help="also consider forks and repositories without pushes in the window (one API call each)",
+    )
     parser.add_argument("--include", nargs="*", default=[], metavar="OWNER/NAME", help="also scan these if active")
     parser.add_argument("--top", type=int, default=16, help="how many of the busiest repositories to scan")
     parser.add_argument("--min-runs", type=int, default=20, help="ignore repositories with fewer runs in the window")

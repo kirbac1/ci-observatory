@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ci_observatory.server import github
-from ci_observatory.server.app import create_app, parse_owner, parse_repo
+from ci_observatory.server.app import create_app, parse_owner, parse_owners, parse_repo
 from ci_observatory.server.config import Settings
 from ci_observatory.server.jobs import Job, Jobs
 
@@ -30,7 +30,7 @@ print("Open it with: open " + str(out / "index.html"), flush=True)
 
 
 class FakeGitHub:
-    """Public "acme/api", private "acme/secret" (readable only with the user's token), the owner "Acme", nothing else."""
+    """Public "acme/api", private "acme/secret" (readable only with the user's token), owners "Acme" and "Other"."""
 
     def __init__(self) -> None:
         self.revoked: list[str] = []
@@ -43,7 +43,7 @@ class FakeGitHub:
         return None
 
     def owner(self, settings: Settings, name: str, token: str | None) -> str | None:
-        return "Acme" if name.lower() == "acme" else None
+        return {"acme": "Acme", "other": "Other"}.get(name.lower())
 
     def exchange_code(self, settings: Settings, code: str, verifier: str) -> dict[str, Any]:
         if code != "good-code":
@@ -118,6 +118,14 @@ def test_parse_owner_accepts_accounts_and_their_github_links() -> None:
     assert parse_owner("github.com/aiven/aiven-client") is None
     assert parse_owner("not an owner") is None
     assert parse_owner("../etc") is None
+
+
+def test_parse_owners_takes_a_few_owners_at_once() -> None:
+    assert parse_owners("aiven, Aiven-Open") == ["aiven", "Aiven-Open"]
+    assert parse_owners("aiven + github.com/Aiven-Open aiven") == ["aiven", "Aiven-Open"]
+    assert parse_owners("a b c d") is None
+    assert parse_owners("aiven, cli/cli") is None
+    assert parse_owners(" , ") is None
 
 
 def test_settings_come_from_the_environment(tmp_path: Path) -> None:
@@ -232,13 +240,24 @@ def test_an_owner_analyses_its_public_repositories_together(client: TestClient) 
     assert view["repo"] == "Acme" and view["whole_owner"] and not view["private"]
     missing = client.post("/api/analyses", json={"repo": "nobody-here"}, headers=ORIGIN)
     assert missing.status_code == 404 and "nobody-here" in missing.json()["error"]
+    both = client.post("/api/analyses", json={"repo": "other, acme", "days": 30}, headers=ORIGIN)
+    assert both.status_code == 202 and both.json()["repo"] == "Acme, Other"
+
+
+def test_a_whole_owner_needs_more_of_the_shared_quota(tmp_path: Path, fake: FakeGitHub) -> None:
+    with TestClient(create_app(settings(tmp_path, min_owner_quota=6000))) as client:
+        owner = client.post("/api/analyses", json={"repo": "acme"}, headers=ORIGIN)
+        assert owner.status_code == 503 and "whole owner" in owner.json()["error"]
+        assert client.post("/api/analyses", json={"repo": "acme/api"}, headers=ORIGIN).status_code == 202
 
 
 def test_an_owner_analysis_reads_only_public_repositories(tmp_path: Path) -> None:
     jobs = Jobs(settings(tmp_path))
-    job = Job(id="j", repo="acme", days=30, private=False, owner="s", quick=True, dir=tmp_path / "j")
+    job = Job(id="j", repo="Acme, Other", days=30, private=False, owner="s", quick=True, dir=tmp_path / "j")
     cmd = list(jobs.command(job))
-    assert cmd[cmd.index("--org") + 1] == "acme" and cmd[cmd.index("--visibility") + 1] == "public"
+    assert [cmd[i + 1] for i, arg in enumerate(cmd) if arg == "--org"] == ["Acme", "Other"]
+    assert cmd[cmd.index("--visibility") + 1] == "public" and "--all-active" in cmd
+    assert cmd[cmd.index("--title") + 1] == "CI Observatory: public repositories of Acme and Other"
     assert "--repo" not in cmd and "--quick" in cmd
 
 

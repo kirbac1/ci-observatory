@@ -36,6 +36,8 @@ class Settings:
     user_per_hour: int = 20
     #: Below this many remaining calls on the server token, only signed-in people can start analyses.
     min_server_quota: int = 600
+    #: A whole owner costs far more calls than one repository, so it needs this many left when not signed in.
+    min_owner_quota: int = 2500
     #: GitHub's web and API addresses; changed only by tests.
     github_url: str = "https://github.com"
     api_url: str = "https://api.github.com"

@@ -5,9 +5,10 @@ paste a repository, watch the analysis run, and get the report in the browser. P
 signing in. Signing in with GitHub lets people analyse private repositories they can read.
 
 An owner works too: type `aiven` (or paste `github.com/aiven`) and the report covers that user's or organisation's
-public repositories together: those pushed to in the window with at least 3 CI runs, the busiest 15 (25 when signed
-in). An owner's report always covers public repositories only, even for people who are signed in, so it can be shared
-and reused like any public report. It may take twice as long as one repository before the server stops it.
+public repositories together, or a few owners at once (`aiven, Aiven-Open`). It takes every public repository that ran
+CI at least 3 times in the window, forks and repositories with only scheduled runs included, the busiest 60 (100 when
+signed in). An owner's report always covers public repositories only, even for people who are signed in, so it can be
+shared and reused like any public report. It may take twice as long as one repository before the server stops it.
 
 ![The web app analysing aiven/aiven-client: four steps with live progress](../site/assets/app.jpg)
 
@@ -99,6 +100,7 @@ Everything is an environment variable.
 | `CIO_ANON_TOTAL_PER_HOUR` | `60` | All analyses by people who are not signed in, per hour. |
 | `CIO_USER_PER_HOUR` | `20` | Analyses one signed-in person can start per hour. |
 | `CIO_MIN_SERVER_QUOTA` | `600` | Below this many API calls left on the server token, only signed-in people can start analyses. |
+| `CIO_MIN_OWNER_QUOTA` | `2500` | Below this many, only signed-in people can analyse a whole owner. |
 | `HOST`, `PORT` | `127.0.0.1`, `8000` | Where the server listens. The container uses `0.0.0.0` and `8080`. |
 
 ## Register the GitHub App
@@ -157,8 +159,10 @@ nothing else, so a mistake can never expose a private repository:
    public data.
 3. Set an expiry date, generate it, and store it as a secret.
 
-It gets 5,000 API calls an hour. A quick analysis of one repository uses about 30 to 150; an owner's uses more,
-one listing call per active repository plus the analysis of each one it keeps.
+It gets 5,000 API calls an hour. A quick analysis of one repository uses about 30 to 150. An owner's uses about 90
+per repository it keeps, plus one per public repository to check for CI runs: `aiven, Aiven-Open` (about 47
+repositories) uses most of an hour's quota. So an owner needs `CIO_MIN_OWNER_QUOTA` calls left (2,500 by default) to
+start without signing in, and its report is reused for `CIO_PUBLIC_CACHE_HOURS`.
 
 ## Deploy to Google Cloud Run
 

@@ -116,6 +116,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--visibility", choices=("all", "public", "private"), default="all", help="with --org: which repositories"
     )
+    parser.add_argument(
+        "--all-active",
+        action="store_true",
+        help="with --org: also forks and repositories nobody pushed to, if they ran CI in the window",
+    )
     parser.add_argument("--days", type=int, default=30, help="look back this many days (default 30)")
     parser.add_argument("--out", type=Path, default=Path("ci-observatory"), help="output folder (default ./ci-observatory)")
     parser.add_argument("--title", help="report heading (default: CI Observatory)")
@@ -179,6 +184,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "--visibility",
             args.visibility,
         ]
+        if args.all_active:
+            first.append("--all-active")
     if args.quick:
         first += ["--jobs-per-workflow", "3", "--max-job-calls", "18", "--max-runs", "500"]
     if not step("actions", actions.main(first)):

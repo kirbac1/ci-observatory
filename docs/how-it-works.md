@@ -48,7 +48,7 @@ only, and redirects to log storage are followed without it. `CI_OBSERVATORY_TRAN
 
 | Step | Endpoints | Notes |
 | --- | --- | --- |
-| discovery (`--org`) | `orgs/{org}`, `orgs/{org}/repos`, `users/{user}/repos`, `user/repos` | ranks repositories by runs in the window and keeps the `--top` busiest with at least `--min-runs` |
+| discovery (`--org`) | `orgs/{org}`, `orgs/{org}/repos`, `users/{user}/repos`, `user/repos` | ranks repositories by runs in the window and keeps the `--top` busiest with at least `--min-runs`. It considers repositories pushed to in the window, not forks; `--all-active` also checks forks and idle ones (one call each, up to 300 per owner) |
 | 1. actions | `repos/{r}/actions/runs`, `…/runs/{id}/jobs`, `…/actions/workflows`, `contents/{workflow file}`, `contents/.github/dependabot.yml`, `pulls`, `releases` | the newest 1,000 runs per repository in the window; jobs for a sample of runs |
 | 2. logs | `…/actions/runs/{id}/jobs`, `…/actions/jobs/{id}/logs` | the latest failed and successful jobs per repository, then every job of one recent pull request commit |
 | 3. signals | `repos/{r}`, `contents/`, `contents/.github`, `…/workflows/{id}/runs`, `commits`, `pulls`, `pulls/{n}/commits`, `pulls/{n}/reviews`, `releases` | instruction files, AI workflows and their runs, pull requests with commits and reviews, default-branch commits |
