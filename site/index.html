@@ -355,8 +355,8 @@ ci-observatory --org my-org \
       <div class="eyebrow">Safe by design</div>
       <h2>It only looks.</h2>
       <div class="safe">
-        <div><b>Read-only</b><span>Every request is <code>gh api --method GET</code>. Nothing is ever written to GitHub.</span></div>
-        <div><b>Never sees your token</b><span>The GitHub CLI holds the credentials. The tool only runs <code>gh</code>.</span></div>
+        <div><b>Read-only</b><span>Every request is a GET. Nothing is ever written to GitHub.</span></div>
+        <div><b>Your token stays put</b><span>With the GitHub CLI, the tool only runs <code>gh</code> and never sees a token. Without it, <code>GH_TOKEN</code> goes to the GitHub API and nowhere else.</span></div>
         <div><b>Stays on your machine</b><span>One HTML file and its data, in a folder you choose. No server, no telemetry.</span></div>
         <div><b>People are not named</b><span>Authors count as "people". Log lines are cleaned of names, emails and tokens.</span></div>
       </div>
@@ -394,6 +394,7 @@ ci-observatory --org my-org \
         <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/github-actions.md"><b>GitHub Actions</b><span>A weekly report for a repository or an organisation</span></a>
         <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/report-guide.md"><b>Reading the report</b><span>What each chart means and what to do about it</span></a>
         <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/how-it-works.md"><b>How it works</b><span>Data, methods, DORA proxies, AI detection and limits</span></a>
+        <a href="https://github.com/kirbac1/ci-observatory/blob/main/docs/web-app.md"><b>The web app</b><span>Host it with GitHub sign-in, for public and private repositories</span></a>
       </div>
     </div>
   </section>

@@ -27,7 +27,6 @@ import json
 import math
 import os
 import re
-import shutil
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
@@ -39,7 +38,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from ci_observatory.gh import Gh, GhError
+from ci_observatory.gh import Gh, GhError, unavailable
 
 SCHEMA_VERSION = 1
 API_VERSION = "2022-11-28"
@@ -1370,8 +1369,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--skip-audit", action="store_true", help="only read the sampled jobs")
     args = parser.parse_args(argv)
 
-    if not args.offline and not args.dry_run and shutil.which("gh") is None:
-        print("error: the GitHub CLI `gh` is not installed", file=sys.stderr)
+    if not args.offline and not args.dry_run and (problem := unavailable()):
+        print(f"error: {problem}", file=sys.stderr)
         return 2
     rows: list[dict[str, Any]] = json.loads(Path(args.runs).read_text())
     if args.repos:

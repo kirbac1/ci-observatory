@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CI Observatory</title>
+<meta name="description" content="Analyse the CI/CD of a GitHub repository in your browser: speed, failures, repeated tests, DORA metrics and AI use.">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="21" fill="none" stroke="#5fd3f3" stroke-opacity=".3"/>
+        <circle cx="24" cy="24" r="13" fill="none" stroke="#5fd3f3" stroke-opacity=".55" stroke-dasharray="3 3"/>
+        <circle cx="24" cy="24" r="4" fill="#5fd3f3"/>
+        <circle cx="35" cy="13" r="2.6" fill="#46d67a"/>
+      </svg>
+      CI Observatory
+    </a>
+    <nav aria-label="Site">
+      <a href="https://kirbac1.github.io/ci-observatory/">About</a>
+      <a href="https://github.com/kirbac1/ci-observatory">GitHub</a>
+      <span id="auth" class="auth"></span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Run it in your browser</div>
+    <h1>Analyse a repository's CI/CD.</h1>
+    <p class="lede">Paste a GitHub repository. In a minute or two you get the full report: what is slow, what fails and why, which tests run twice, DORA delivery metrics, AI use, and what to fix first.</p>
+
+    <form id="form" class="ask" autocomplete="off" novalidate>
+      <label class="sr" for="repo">Repository</label>
+      <input id="repo" name="repo" type="text" placeholder="owner/name, or paste a GitHub link" spellcheck="false" autocapitalize="off" autocorrect="off" maxlength="300" required>
+      <label class="sr" for="days">Look back</label>
+      <select id="days" name="days">
+        <option value="7">7 days</option>
+        <option value="14">14 days</option>
+        <option value="30" selected>30 days</option>
+        <option value="60">60 days</option>
+        <option value="90">90 days</option>
+      </select>
+      <button class="btn primary" type="submit" id="go">Analyse</button>
+    </form>
+    <p class="message" id="message" role="alert" hidden></p>
+    <p class="hint" id="hint">Public repositories work without signing in.</p>
+    <div class="examples" id="examples">
+      <span>Try</span>
+      <button type="button" data-repo="cli/cli">cli/cli</button>
+      <button type="button" data-repo="aiven/aiven-client">aiven/aiven-client</button>
+      <button type="button" data-repo="astral-sh/uv">astral-sh/uv</button>
+    </div>
+  </section>
+
+  <section class="job" id="job" hidden aria-live="polite">
+    <div class="job-head">
+      <div>
+        <div class="eyebrow" id="job-state">Waiting</div>
+        <h2 id="job-title"></h2>
+      </div>
+      <div class="job-time" id="job-time"></div>
+    </div>
+    <ol class="steps" id="steps">
+      <li data-step="1"><b>1</b> Workflow runs</li>
+      <li data-step="2"><b>2</b> Job logs and tests</li>
+      <li data-step="3"><b>3</b> AI and DORA</li>
+      <li data-step="4"><b>4</b> Report</li>
+    </ol>
+    <pre class="log" id="log"></pre>
+    <p class="message" id="job-error" hidden></p>
+    <div class="job-actions">
+      <a class="btn primary" id="open" hidden>Open the report →</a>
+      <button class="btn" type="button" id="cancel" hidden>Cancel</button>
+    </div>
+  </section>
+
+  <section class="recent" id="recent-wrap" hidden>
+    <h2>Recently analysed</h2>
+    <ul id="recent"></ul>
+  </section>
+
+  <section class="facts">
+    <div><b>Read-only</b><span>Every request to GitHub is a GET. Nothing is ever written to your repositories.</span></div>
+    <div><b>Your token stays on the server</b><span>Signing in gives a read-only token that never reaches the browser and is revoked when you sign out.</span></div>
+    <div><b>Private stays private</b><span>A report on a private repository is shown only to you and deleted within an hour, or when you sign out.</span></div>
+    <div><b>Prefer your own machine?</b><span>The same report runs locally: <code>uvx --from git+https://github.com/kirbac1/ci-observatory ci-observatory</code></span></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>MIT licensed · <a href="https://github.com/kirbac1/ci-observatory">github.com/kirbac1/ci-observatory</a></span>
+    <span>Public reports are kept for a few hours so others can open them.</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -53,10 +53,13 @@
     const ratings = D.metrics.map((m) => [m.label.toLowerCase(), D.fleet[m.key] == null ? null : m.band(D.fleet[m.key])]).filter(([, b]) => b);
     const best = ratings.slice().sort((a, b) => b[1] - a[1])[0];
     const worst = ratings.slice().sort((a, b) => a[1] - b[1])[0];
-    O.put(O.clear(O.$('#dora-answer')), sel ? ['Showing ', O.el('b', { text: sel.short }), '. Clear the selection to see all repositories.'] : [
-      'Strongest: ', O.el('b', { text: `${best[0]} (${D.BAND[best[1]]})` }), '. Weakest: ', O.el('b', { text: `${worst[0]} (${D.BAND[worst[1]]})` }), '.',
-      ' These are estimates from releases and CI, not production data.',
-    ]);
+    const caveat = ' These are estimates from releases and CI, not production data.';
+    let answer;
+    if (sel) answer = ['Showing ', O.el('b', { text: sel.short }), '. Clear the selection to see all repositories.'];
+    else if (!ratings.length) answer = ['Not enough releases or main-branch runs in this window to rate delivery. A longer window may help.'];
+    else if (ratings.length === 1) answer = ['Only ', O.el('b', { text: `${best[0]} (${D.BAND[best[1]]})` }), ' could be rated.', caveat];
+    else answer = ['Strongest: ', O.el('b', { text: `${best[0]} (${D.BAND[best[1]]})` }), '. Weakest: ', O.el('b', { text: `${worst[0]} (${D.BAND[worst[1]]})` }), '.', caveat];
+    O.put(O.clear(O.$('#dora-answer')), answer);
   };
   D.table = function () {
     const cell = (m, r) => {
@@ -383,7 +386,11 @@
   T.first = (a) => Math.max(0, a.tests_run - O.sum(Object.values(a.extra || {})));
   T.init = function (data) {
     T.data = data.tests;
-    if (!T.data || !T.data.repos) { O.$('#tests-kpis').appendChild(O.el('div', { class: 'empty', text: 'No test audit in this report.' })); return; }
+    if (!T.data || !T.data.repos || !T.data.repos.length) {
+      const why = T.data && T.data.repos ? 'No test results were found in the audited jobs.' : 'No test audit in this report.';
+      O.$('#tests-kpis').appendChild(O.el('div', { class: 'empty', text: why }));
+      return;
+    }
     T.repos = T.data.repos;
     O.safe('tests-kpis', T.kpis);
     O.safe('tests-bars', T.bars);

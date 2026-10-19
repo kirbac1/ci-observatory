@@ -41,7 +41,10 @@ changing the page.
 
 ## What it reads
 
-Every request is `gh api --method GET` against the GitHub REST API (version `2022-11-28`). Nothing is written.
+Every request is a GET against the GitHub REST API (version `2022-11-28`). Nothing is written. Requests go through
+`gh api --method GET` when the GitHub CLI is installed, so the tool never sees a token. Where `gh` is missing and
+`GH_TOKEN` is set (a container, the web app), they go directly over HTTPS with gzip; the token is sent to the API host
+only, and redirects to log storage are followed without it. `CI_OBSERVATORY_TRANSPORT=gh` or `=http` forces either.
 
 | Step | Endpoints | Notes |
 | --- | --- | --- |

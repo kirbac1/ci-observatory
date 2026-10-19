@@ -22,6 +22,10 @@ JS_FILES = ("obs-core.js", "obs-fleet.js", "obs-deep.js", "obs-ai.js", "obs-main
 SKELETON = (
     '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+    "<link rel=\"icon\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E"
+    "%3Crect width='48' height='48' rx='10' fill='%23060a10'/%3E%3Ccircle cx='24' cy='24' r='17' fill='none' "
+    "stroke='%235fd3f3' stroke-width='2' stroke-opacity='.5'/%3E%3Ccircle cx='24' cy='24' r='4' fill='%235fd3f3'/%3E"
+    "%3Ccircle cx='34' cy='14' r='3' fill='%2346d67a'/%3E%3C/svg%3E\">"
     "<style>:root{color-scheme:dark}body{margin:0}[hidden]{display:none!important}</style></head><body>\n"
     "{content}\n</body></html>\n"
 )

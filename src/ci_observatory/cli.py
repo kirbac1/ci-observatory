@@ -5,9 +5,9 @@ repositories, public or private, and writes a single self-contained HTML report.
     ci-observatory --org my-org                     # the busiest repositories of an organisation
     ci-observatory --repo my-org/api --repo my-org/web --days 30 --open
 
-Everything is read through the GitHub CLI with GET requests, so this tool never sees your token. Private repositories
-work when your login can read them: `gh auth login` (or GH_TOKEN) with the repo scope, authorised for SSO if your
-organisation uses it. Steps:
+Everything is read with GET requests through the GitHub CLI, so this tool never sees your token (without `gh`, it uses
+GH_TOKEN directly). Private repositories work when your login can read them: `gh auth login` (or GH_TOKEN) with the
+repo scope, authorised for SSO if your organisation uses it. Steps:
 
   1. actions   runs, jobs, steps, workflow hygiene, pull requests, releases
   2. logs      a sample of job logs, decoded, then a test redundancy audit of one PR commit per repository
@@ -29,6 +29,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ci_observatory import __version__, actions, logs, report, signals
+from ci_observatory.gh import Gh, GhError, RateLimited, transport
 
 REPO = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9_.-]*/[A-Za-z0-9_.][A-Za-z0-9_.-]*$")
 
@@ -38,9 +39,14 @@ def say(message: str) -> None:
 
 
 def gh_problem() -> str | None:
-    """Why `gh` cannot be used, or None when it can."""
+    """Why GitHub cannot be read, or None when it can."""
+    if transport() == "http":
+        return None  # a token from the environment, used directly: gh is not needed
     if shutil.which("gh") is None:
-        return "the GitHub CLI `gh` is not installed. Install it from https://cli.github.com and run `gh auth login`."
+        return (
+            "the GitHub CLI `gh` is not installed. Install it from https://cli.github.com and run `gh auth login`,"
+            " or set GH_TOKEN to a token that can read your repositories."
+        )
     if os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_ENTERPRISE_TOKEN"):
         return None
     proc = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, check=False)
@@ -62,11 +68,14 @@ def current_repo() -> str | None:
 
 
 def can_read(repo: str) -> tuple[bool, bool]:
-    """(readable, private) for one repository, via `gh api`."""
-    proc = subprocess.run(
-        ["gh", "api", "--method", "GET", f"repos/{repo}", "--jq", ".private"], capture_output=True, text=True, check=False
-    )
-    return proc.returncode == 0, proc.stdout.strip() == "true"
+    """(readable, private) for one repository. A rate limit is not "unreadable": it propagates."""
+    try:
+        found = Gh(max_calls=5).json(f"repos/{repo}")
+    except RateLimited:
+        raise
+    except GhError:
+        return False, False
+    return found is not None, bool(found and found.get("private"))
 
 
 def shareable(argv: Sequence[str]) -> str:
@@ -136,7 +145,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         say(f"error: not OWNER/NAME: {', '.join(bad)}")
         return 2
     for repo in repos:
-        readable, private = can_read(repo)
+        try:
+            readable, private = can_read(repo)
+        except RateLimited:
+            say("error: GitHub's API rate limit is used up for this token. Wait for the hourly reset, then rerun.")
+            return 1
         if not readable:
             say(
                 f"error: cannot read {repo}. For a private repository, the token needs the repo scope "

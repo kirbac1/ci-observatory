@@ -15,7 +15,7 @@ that access, from the simplest to the most locked down, and what to do when GitH
 
 ## What access it needs
 
-Read access, and nothing more. Every request is `gh api --method GET`.
+Read access, and nothing more. Every request is a GET.
 
 | GitHub permission | Level | Used for |
 | --- | --- | --- |
@@ -24,7 +24,8 @@ Read access, and nothing more. Every request is `gh api --method GET`.
 | Pull requests | read | pull requests, their commits and reviews |
 | Metadata | read | repository lists (always granted) |
 
-The tool never reads, prints or stores a token. It runs `gh`, and `gh` attaches the credentials.
+With the GitHub CLI installed, the tool never reads, prints or stores a token: it runs `gh`, and `gh` attaches the
+credentials. Without `gh`, it reads `GH_TOKEN` from the environment and sends it to the GitHub API only.
 
 ## Option A: your own gh login
 

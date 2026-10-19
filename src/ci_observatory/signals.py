@@ -22,7 +22,6 @@ says which proxy each number uses.
 import argparse
 import json
 import re
-import shutil
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -32,7 +31,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ci_observatory.gh import BudgetExceeded, Gh, GhError, RateLimited
+from ci_observatory.gh import BudgetExceeded, Gh, GhError, RateLimited, unavailable
 
 SCHEMA_VERSION = 1
 
@@ -826,8 +825,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--max-calls", type=int, default=3000, help="stop after this many API calls")
     parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args(argv)
-    if shutil.which("gh") is None:
-        print("error: the GitHub CLI `gh` is not installed (https://cli.github.com)", file=sys.stderr)
+    if problem := unavailable():
+        print(f"error: {problem}", file=sys.stderr)
         return 2
 
     until = datetime.now(UTC).replace(microsecond=0)

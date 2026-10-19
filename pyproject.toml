@@ -1,6 +1,6 @@
 [project]
 name = "ci-observatory"
-version = "0.1.0"
+version = "0.2.0"
 description = "One command that maps CI/CD speed, failures, repeated tests, DORA metrics and AI use across GitHub repositories, public or private."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,8 +27,16 @@ Documentation = "https://github.com/kirbac1/ci-observatory#readme"
 [project.scripts]
 ci-observatory = "ci_observatory.cli:main"
 
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.146.0",
+    "uvicorn>=0.54.0",
+]
+
 [dependency-groups]
 dev = [
+    "ci-observatory[server]",
+    "httpx2==2.14.0",
     "mypy==2.4.0",
     "pytest==9.1.1",
     "ruff==0.17.1",

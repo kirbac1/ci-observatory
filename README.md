@@ -40,8 +40,8 @@ What each chart means, and what to do about it, is in [Reading the report](docs/
 
 ## Install
 
-You need the [GitHub CLI](https://cli.github.com), logged in (`gh auth login`). Everything else comes with the
-installer.
+You need the [GitHub CLI](https://cli.github.com), logged in (`gh auth login`), or a token in `GH_TOKEN`. Everything
+else comes with the installer.
 
 **macOS and Linux, one line:**
 
@@ -128,6 +128,19 @@ usage, or `gh` is missing or not logged in.
 
 </details>
 
+## The web app
+
+The same analysis also runs as a small web service: paste a repository, watch it run, read the report. Public
+repositories work without signing in; signing in with GitHub (a read-only GitHub App) adds private repositories. The
+token stays on the server and is revoked at sign-out, and private reports are shown only to the person who asked.
+
+```sh
+CIO_SERVER_TOKEN=$(gh auth token) uv run --extra server python -m ci_observatory.server   # http://localhost:8000
+```
+
+Configuration, the GitHub App, the security model and deploying to Cloud Run or any Docker host are in
+[docs/web-app.md](docs/web-app.md).
+
 ## Private repositories
 
 The command does not change. What matters is that your `gh` login, or the token you hand to `gh`, can read the
@@ -159,13 +172,15 @@ step-by-step guide, with SSO, token approval, GitHub Enterprise Server and troub
 
 ## Safe by design
 
-- **Read-only.** Every request is `gh api --method GET`. Nothing is written to GitHub.
-- **It never sees your token.** The GitHub CLI holds the credentials; this tool only runs `gh`.
+- **Read-only.** Every request is a GET. Nothing is written to GitHub.
+- **Your token stays put.** With the GitHub CLI installed (the usual case), the tool only runs `gh` and never sees a
+  token. Without `gh`, it reads `GH_TOKEN` and sends it to the GitHub API only, never to log storage or anywhere else.
 - **Everything stays on your machine.** One HTML file and its data, in a folder you choose. No server, no telemetry.
   Raw logs are cached in `~/.cache/ci-observatory/` and can be deleted at any time.
 - **People are not named.** Authors and reviewers are counted as "people"; only bots and AI accounts appear by name.
   Log excerpts are cleaned of names, emails, tokens and IP addresses.
-- **No dependencies.** Python's standard library and `gh`. The report uses plain SVG and no JavaScript libraries.
+- **No dependencies.** The command needs Python's standard library, plus `gh` or a `GH_TOKEN`. The report uses plain
+  SVG and no JavaScript libraries. Only the optional web app adds FastAPI and uvicorn.
 
 The report still describes your repositories (their names, workflow names, cleaned log lines, and the titles of
 AI-assisted pull requests), so share it the way you would share the repositories themselves.
@@ -191,19 +206,21 @@ Each step stops cleanly at `--max-calls` or on a rate limit, and the report says
 | [GitHub Actions](docs/github-actions.md) | A weekly report for one repository, or for a whole organisation with a GitHub App |
 | [Reading the report](docs/report-guide.md) | Every section and chart, what it means, and what to do about it |
 | [How it works](docs/how-it-works.md) | The pipeline, the data files, how every number is made, DORA proxies, AI detection, limits |
+| [The web app](docs/web-app.md) | Running the analysis as a service with GitHub sign-in: security model, GitHub App, Cloud Run |
 
 ## Developing
 
 ```sh
 git clone https://github.com/kirbac1/ci-observatory && cd ci-observatory
-uv run pytest                                  # unit tests
+uv run pytest                                  # unit tests, including the web app against fakes
 uv run ruff check && uv run ruff format --check
 uv run mypy                                    # strict
 sh scripts/build-site.sh && python3 -m http.server -d _site   # the website and demo, at http://localhost:8000
 ```
 
 The code is in `src/ci_observatory/`: one module per step (`actions.py`, `logs.py`, `signals.py`, `report.py`), a
-small `gh` wrapper (`gh.py`) and the command (`cli.py`). The page is in `src/ci_observatory/web/`: `page.html`,
+small GitHub client (`gh.py`, through `gh` or directly over HTTPS), the command (`cli.py`) and the web app
+(`server/`). The page is in `src/ci_observatory/web/`: `page.html`,
 `observatory.css` and the `obs-*.js` modules. To work on the page without calling GitHub, rebuild the demo from the
 saved data:
 
@@ -211,7 +228,8 @@ saved data:
 uv run python -m ci_observatory.report --data-dir demo/data --out /tmp/report.html && open /tmp/report.html
 ```
 
-Every push runs tests on Python 3.11 and 3.14, ruff, mypy, a syntax check of the page scripts, and a build of the site.
+Every push runs tests on Python 3.11 and 3.14, ruff, mypy, a syntax check of the page scripts, a build of the site
+and a build of the web app's container.
 Pushes to `main` publish the website and the demo to GitHub Pages.
 
 ## License

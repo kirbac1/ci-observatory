@@ -19,7 +19,6 @@ import json
 import math
 import re
 import statistics
-import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
@@ -31,7 +30,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from ci_observatory.gh import BudgetExceeded, Gh, GhError, RateLimited
+from ci_observatory.gh import BudgetExceeded, Gh, GhError, RateLimited, unavailable
 
 SCHEMA_VERSION = 2
 API_VERSION = "2022-11-28"
@@ -1048,10 +1047,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if bad:
         print(f"error: not an OWNER/NAME repository: {', '.join(bad)}", file=sys.stderr)
         return 2
-    try:
-        subprocess.run(["gh", "--version"], capture_output=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        print("error: the GitHub CLI (gh) is required: https://cli.github.com", file=sys.stderr)
+    if problem := unavailable():
+        print(f"error: {problem}", file=sys.stderr)
         return 2
 
     now = datetime.now(UTC)

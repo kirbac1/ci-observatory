@@ -45,6 +45,28 @@ jobs:
       - name: mypy
         run: uv run mypy
       - name: Page scripts parse
-        run: for f in src/ci_observatory/web/*.js; do node --check "$f"; done
+        run: for f in src/ci_observatory/web/*.js src/ci_observatory/server/static/*.js; do node --check "$f"; done
       - name: Shell scripts parse
         run: sh -n install.sh && sh -n scripts/build-site.sh
+
+  container:
+    name: Web app container
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image
+        run: docker build -t ci-observatory:ci .
+      - name: It starts, answers, and has no gh inside
+        run: |
+          docker run -d --name app -p 8080:8080 -e CIO_PUBLIC_URL=http://localhost:8080 ci-observatory:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz; then
+              curl -fsS http://localhost:8080/ | grep -q "Analyse a repository"
+              if docker exec app sh -c 'command -v gh'; then echo "::error::gh should not be in the image"; exit 1; fi
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs app
+          exit 1

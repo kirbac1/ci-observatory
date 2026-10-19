@@ -1,7 +1,8 @@
 # Install
 
 CI Observatory is one Python command, `ci-observatory`, with no dependencies outside the standard library. It reads
-GitHub through the [GitHub CLI](https://cli.github.com), so whichever way you install it, you need `gh`.
+GitHub through the [GitHub CLI](https://cli.github.com), so whichever way you install it, you need `gh`, or a token in
+`GH_TOKEN` (then it calls the API directly).
 
 - [Requirements](#requirements)
 - [The one-line installer](#the-one-line-installer)
@@ -17,8 +18,8 @@ GitHub through the [GitHub CLI](https://cli.github.com), so whichever way you in
 
 | What | Why | How |
 | --- | --- | --- |
-| GitHub CLI `gh`, a recent version | every request to GitHub goes through it | `brew install gh`, or see <https://cli.github.com> for Linux and Windows |
-| A `gh` login, or `GH_TOKEN` | so `gh` can read your repositories | `gh auth login` ([private repositories](private-repositories.md) need the `repo` scope) |
+| GitHub CLI `gh`, a recent version | requests go through it, so the tool never sees a token | `brew install gh`, or see <https://cli.github.com> for Linux and Windows |
+| A `gh` login, or `GH_TOKEN` | to read your repositories; with `GH_TOKEN` and no `gh`, the tool calls the API itself | `gh auth login` ([private repositories](private-repositories.md) need the `repo` scope) |
 | [uv](https://docs.astral.sh/uv/), or pipx with Python 3.11+ | to install and run the command | the installer below adds uv if it is missing |
 
 Tested on macOS and Linux. Windows has not been tested; the `uvx` route below is the one to try there.
