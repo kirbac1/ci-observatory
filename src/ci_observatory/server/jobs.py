@@ -1,8 +1,8 @@
 """Analyses: a queue, a runner that executes the ci-observatory command in a subprocess, live progress, and cleanup.
 
 Each analysis gets its own folder and its own cache. The subprocess sees only the token it needs, never the server's
-other secrets. Public reports are kept and reused for a few hours; private ones belong to the session that asked for
-them and are deleted soon after.
+other secrets. Public reports are kept and reused for a few hours, in the archive folder when there is one, so they
+survive a restart; private ones belong to the session that asked for them and are deleted soon after.
 """
 
 import asyncio
@@ -250,6 +250,7 @@ class Jobs:
                 shutil.rmtree(job.dir / "cache", ignore_errors=True)
                 if job.status == "done" and not job.private:
                     self._save(job)
+                    await asyncio.to_thread(self._archive, job)
                 job.notify()
 
     async def _execute(self, job: Job, token: str) -> None:
@@ -295,15 +296,39 @@ class Jobs:
         }
         (job.dir / "job.json").write_text(json.dumps(meta))
 
+    def _archive(self, job: Job) -> None:
+        """Move a finished public report to the archive: the report page, then job.json, which marks it complete."""
+        archive = self.settings.archive
+        if archive is None:
+            return
+        dest = archive / job.id
+        try:
+            (dest / "out").mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(job.report, dest / "out" / "index.html")
+            shutil.copyfile(job.dir / "job.json", dest / "job.json")
+        except OSError:
+            return  # the report stays in data_dir, for as long as this server runs
+        shutil.rmtree(job.dir, ignore_errors=True)
+        job.dir = dest
+
     def restore(self) -> None:
-        """After a restart: keep fresh public reports, delete everything else (private reports have no owner now)."""
+        """After a restart: keep fresh public reports, delete everything else (private reports have no owner now).
+        In the archive, a folder without job.json may still be on its way from another instance, so it stays (a
+        storage lifecycle rule can clear such leftovers)."""
         fresh = time.time() - self.settings.public_cache_hours * 3600
-        for path in self.settings.data_dir.iterdir() if self.settings.data_dir.exists() else []:
+        archive = self.settings.archive
+        places = [p for p in (archive, self.settings.data_dir) if p is not None and p.exists()]
+        for path in [path for place in places for path in place.iterdir()]:
             meta_file = path / "job.json"
             try:
                 meta = json.loads(meta_file.read_text()) if meta_file.exists() else None
             except (OSError, ValueError):
                 meta = None
+            if meta is None and archive is not None and path.parent == archive:
+                continue
+            if meta and meta.get("id") in self.jobs:
+                shutil.rmtree(path, ignore_errors=True)  # a local copy of a report that is in the archive already
+                continue
             if meta and meta.get("finished", 0) > fresh and (path / "out" / "index.html").exists():
                 job = Job(
                     id=meta["id"],

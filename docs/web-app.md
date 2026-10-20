@@ -101,6 +101,7 @@ Everything is an environment variable.
 | `CIO_USER_PER_HOUR` | `20` | Analyses one signed-in person can start per hour. |
 | `CIO_MIN_SERVER_QUOTA` | `600` | Below this many API calls left on the server token, only signed-in people can start analyses. |
 | `CIO_MIN_OWNER_QUOTA` | `2500` | Below this many, only signed-in people can analyse a whole owner. |
+| `CIO_ARCHIVE_DIR` | (none) | A folder that outlives the server, such as a mounted Cloud Storage bucket. Finished public reports move there and come back after a restart; private reports never do. |
 | `HOST`, `PORT` | `127.0.0.1`, `8000` | Where the server listens. The container uses `0.0.0.0` and `8080`. |
 
 ## Register the GitHub App
@@ -168,7 +169,8 @@ start without signing in, and its report is reused for `CIO_PUBLIC_CACHE_HOURS`.
 
 Cloud Run builds the container from this repository and runs it on demand. The app keeps sessions and running
 analyses in memory, so it runs as **one instance**; with `--no-cpu-throttling`, analyses keep running between
-requests.
+requests. Two CPUs let two analyses run side by side while the page stays responsive; with one, a large owner can
+starve the server.
 
 1. Pick a project and region, and enable the services once:
 
@@ -197,7 +199,7 @@ requests.
 
    ```sh
    gcloud run deploy ci-observatory --source . --region europe-north1 --allow-unauthenticated \
-     --max-instances 1 --concurrency 80 --cpu 1 --memory 1Gi --timeout 3600 --no-cpu-throttling \
+     --max-instances 1 --concurrency 80 --cpu 2 --memory 2Gi --timeout 3600 --no-cpu-throttling \
      --set-env-vars CIO_PUBLIC_URL=https://PUBLIC-URL,CIO_CLIENT_ID=Iv23...,CIO_APP_SLUG=your-app-slug \
      --set-secrets CIO_SERVER_TOKEN=cio-server-token:latest,CIO_CLIENT_SECRET=cio-client-secret:latest
    ```
@@ -209,6 +211,24 @@ requests.
 
 4. Check it: `curl <url>/health` answers `{"ok": true, ...}`, and the page opens at `<url>`. (Cloud Run keeps
    `/healthz` for itself, so use `/health` there.)
+
+5. Optional, recommended: keep public reports across restarts. Cloud Run stops an idle instance after a while and
+   sometimes replaces a busy one, and the instance's own disk goes with it. A Cloud Storage bucket mounted as
+   `CIO_ARCHIVE_DIR` keeps finished public reports; analyses still run on the instance, and private reports never
+   leave it. The lifecycle rule clears anything older than a day.
+
+   ```sh
+   B=MY_PROJECT-cio-reports
+   gcloud storage buckets create gs://$B --location europe-north1 --uniform-bucket-level-access --public-access-prevention
+   echo '{"rule":[{"action":{"type":"Delete"},"condition":{"age":1}}]}' > lifecycle.json
+   gcloud storage buckets update gs://$B --lifecycle-file=lifecycle.json
+   gcloud storage buckets add-iam-policy-binding gs://$B --member=serviceAccount:$SA --role=roles/storage.objectUser
+   gcloud run deploy ci-observatory --source . --region europe-north1 --execution-environment gen2 \
+     --add-volume "name=reports,type=cloud-storage,bucket=$B,mount-options=uid=10001;gid=10001;implicit-dirs" \
+     --add-volume-mount volume=reports,mount-path=/reports --update-env-vars CIO_ARCHIVE_DIR=/reports
+   ```
+
+   The container runs as user 10001, so the mount is given to that user.
 
 To use your own domain, map it to the service (Cloud Run domain mappings, or a load balancer), then change
 `CIO_PUBLIC_URL` and the app's callback URL to match.

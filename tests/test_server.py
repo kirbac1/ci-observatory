@@ -1,5 +1,6 @@
 """The web app, with GitHub and the analysis command replaced by fakes, so these tests run offline in seconds."""
 
+import asyncio
 import sys
 import time
 from collections.abc import Iterator
@@ -13,7 +14,7 @@ from fastapi.testclient import TestClient
 from ci_observatory.server import github
 from ci_observatory.server.app import create_app, parse_owner, parse_owners, parse_repo
 from ci_observatory.server.config import Settings
-from ci_observatory.server.jobs import Job, Jobs
+from ci_observatory.server.jobs import FINAL, Job, Jobs
 
 ORIGIN = {"Origin": "http://testserver"}
 FAKE_ANALYSIS = """
@@ -259,6 +260,32 @@ def test_an_owner_analysis_reads_only_public_repositories(tmp_path: Path) -> Non
     assert cmd[cmd.index("--visibility") + 1] == "public" and "--all-active" in cmd
     assert cmd[cmd.index("--title") + 1] == "CI Observatory: public repositories of Acme and Other"
     assert "--repo" not in cmd and "--quick" in cmd
+
+
+def test_public_reports_move_to_the_archive_and_outlive_a_restart(tmp_path: Path, fake: FakeGitHub) -> None:
+    archive = tmp_path / "archive"
+    config = settings(tmp_path, archive_dir=str(archive))
+
+    async def finish() -> tuple[Job, Job]:
+        jobs = Jobs(config)
+        public = jobs.submit("acme/api", 7, private=False, owner="s", quick=True, token="t")
+        private = jobs.submit("acme/secret", 7, private=True, owner="s", quick=True, token="t")
+        while public.status not in FINAL or private.status not in FINAL:
+            await asyncio.sleep(0.05)
+        return public, private
+
+    public, private = asyncio.run(finish())
+    assert public.status == "done" and public.dir == archive / public.id and public.report.exists()
+    assert not (config.data_dir / public.id).exists()
+    assert private.report.exists() and not (archive / private.id).exists()
+    (archive / "half-copied" / "out").mkdir(parents=True)
+
+    after_restart = Jobs(config)
+    after_restart.restore()
+    restored = after_restart.get(public.id)
+    assert restored is not None and restored.status == "done" and restored.report.exists()
+    assert after_restart.get(private.id) is None and not private.dir.exists()
+    assert (archive / "half-copied").exists()
 
 
 def test_the_analysis_never_sees_the_servers_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

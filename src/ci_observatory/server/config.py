@@ -22,6 +22,9 @@ class Settings:
     #: Reads public repositories for people who are not signed in. Use a token that can read public data only.
     server_token: str = ""
     data_dir: Path = field(default_factory=lambda: Path(tempfile.gettempdir()) / "ci-observatory-server")
+    #: A folder that outlives the server, such as a mounted Cloud Storage bucket. Finished public reports are moved
+    #: there and read back after a restart. Analyses still run in data_dir, and private reports never leave it.
+    archive_dir: str = ""
     #: Analyses running at once, and waiting in line.
     max_jobs: int = 2
     queue_limit: int = 20
@@ -59,6 +62,10 @@ class Settings:
         if not self.public_url.startswith(("http://", "https://")):
             raise ValueError("CIO_PUBLIC_URL must start with http:// or https://")
         return self
+
+    @property
+    def archive(self) -> Path | None:
+        return Path(self.archive_dir) if self.archive_dir else None
 
     @property
     def login_enabled(self) -> bool:
