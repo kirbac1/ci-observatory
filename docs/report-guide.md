@@ -1,14 +1,15 @@
 # Reading the report
 
-The report is one page with seven sections and a method note. Each chart is titled with the question it answers, and
+The report has seven sections and a method note, one at a time, picked from a sidebar. Each chart is titled with the
+question it answers, and
 the sentence under it gives the answer for your data. This guide explains what each part shows, how to read it, and
 what to do about it. The [live demo](https://kirbac1.github.io/ci-observatory/demo/) is a good companion.
 
 - [Moving around](#moving-around)
 - [1. Overview](#1-overview)
 - [2. Delivery (DORA)](#2-delivery-dora)
-- [3. Inside a job](#3-inside-a-job)
-- [4. Health check](#4-health-check)
+- [3. Health check](#3-health-check)
+- [4. Inside a job](#4-inside-a-job)
 - [5. Test audit](#5-test-audit)
 - [6. AI impact](#6-ai-impact)
 - [7. Solution box](#7-solution-box)
@@ -16,10 +17,16 @@ what to do about it. The [live demo](https://kirbac1.github.io/ci-observatory/de
 
 ## Moving around
 
-- **Focus on one repository.** Click a repository anywhere (a bubble, a table row, a bar) and the whole page narrows
-  to it. The chip at the right of the menu says what is shown; click it or press **Esc** to go back to all
-  repositories.
-- **Menu.** The bar at the top jumps to each section and follows you as you scroll.
+- **Sections.** The sidebar lists the sections in four groups (the big picture, the causes, AI, and what to do), each
+  with a one-line description and its headline number, such as the pass rate or how many fixes were found. Click one
+  to open it; *Previous* and *Next* at the bottom walk through them in order. The address changes with the section
+  (`index.html#tests`), so the back button works and a link opens the section it names. On a phone the sidebar folds
+  into a menu button at the top.
+- **One long page.** *Show everything on one page*, under the sections, puts them all on one scrolling page again,
+  handy for searching with Ctrl+F or printing. The browser remembers the choice.
+- **Focus on one repository.** Pick it in the *Repositories* list at the top of the sidebar, or click a repository
+  anywhere (a bubble, a table row, a bar): every section narrows to it. Pick *All repositories*, click *Show all* or
+  press **Esc** to go back.
 - **Tables.** Click a column heading to sort a table. The bubble chart has a *Show as table* button for the same
   numbers as rows.
 - **Tooltips.** Hover or tap any bar, bubble or segment for the exact numbers.
@@ -77,27 +84,7 @@ usually mean releases are manual; regular marks mean release automation.
 What to do: a low *how often* with a high *pull request to release* time usually means merged work waits for a manual
 release. The Solution box suggests release automation when it sees that pattern.
 
-## 3. Inside a job
-
-Pick any sampled job on the left (filter by *Failed* or *Passed*, or search by name). The tool reads the latest failed
-and passed jobs of each repository.
-
-- **The answer line** says how long the job took, what kind of work took most of it, and how long it printed nothing.
-- **What went wrong** (failed jobs only) gives the failure class and the most telling line of the failed step, such as
-  the failing test or the first compiler error.
-- **Where the time went** splits the job into kinds of work: setup, dependencies, containers, build, tests, lint,
-  security scans and other. The kind comes from step names, the commands they ran and patterns in the log.
-- **Steps, in order** is a timeline. Hatched stretches are 20 seconds or more with no output, typically a compile, a
-  download or a test run that prints only at the end. A red bar is the step that failed.
-- **Facts** lists tests run and failed, cache hits and misses, files downloaded, warnings, what the job's token could
-  write to, and the runner image.
-- **The job's log** shows the important lines (commands, errors, warnings, test results and quiet stretches), only
-  problems, or everything. **Play** replays the log at speed with a moving playhead.
-
-Log lines are cleaned before they are stored: names, emails, tokens, IP addresses and commit subjects are removed, and
-runner paths are shortened.
-
-## 4. Health check
+## 3. Health check
 
 **Why do jobs fail?** Failed jobs from the sample, grouped by cause. The colour says where the problem is: in the code
 (tests, lint, build), or around it (timeouts, network and rate limits, broken workflow setup, dependency resolution,
@@ -117,6 +104,26 @@ A large setup or dependencies share means caching would help; a large tests shar
 | Time limits set | workflows set `timeout-minutes` | without one, a stuck job runs for 6 hours |
 | Cache works | cache hits rather than misses | a cache that never hits costs time to save and restore |
 | Outdated actions | no "deprecated" warnings from GitHub | deprecated actions stop working when GitHub removes the old runtime |
+
+## 4. Inside a job
+
+Pick any sampled job on the left (filter by *Failed* or *Passed*, or search by name). The tool reads the latest failed
+and passed jobs of each repository.
+
+- **The answer line** says how long the job took, what kind of work took most of it, and how long it printed nothing.
+- **What went wrong** (failed jobs only) gives the failure class and the most telling line of the failed step, such as
+  the failing test or the first compiler error.
+- **Where the time went** splits the job into kinds of work: setup, dependencies, containers, build, tests, lint,
+  security scans and other. The kind comes from step names, the commands they ran and patterns in the log.
+- **Steps, in order** is a timeline. Hatched stretches are 20 seconds or more with no output, typically a compile, a
+  download or a test run that prints only at the end. A red bar is the step that failed.
+- **Facts** lists tests run and failed, cache hits and misses, files downloaded, warnings, what the job's token could
+  write to, and the runner image.
+- **The job's log** shows the important lines (commands, errors, warnings, test results and quiet stretches), only
+  problems, or everything. **Play** replays the log at speed with a moving playhead.
+
+Log lines are cleaned before they are stored: names, emails, tokens, IP addresses and commit subjects are removed, and
+runner paths are shortened.
 
 ## 5. Test audit
 

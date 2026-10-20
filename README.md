@@ -23,15 +23,16 @@ The demo is built from public data of 19 repositories in the `aiven` and `Aiven-
 
 ## What you get
 
-One self-contained `index.html` with seven sections. Every chart answers one question in plain words, and clicking a
-repository anywhere focuses the whole page on it.
+One self-contained `index.html` with seven sections, picked one at a time from a sidebar that shows each section's
+headline number. Every chart answers one question in plain words, and picking a repository (in the sidebar, or by
+clicking it in any chart) focuses every section on it.
 
 | Section | The question it answers |
 | --- | --- |
 | **Overview** | Which repositories are fast and reliable? When do runs start? How many pass each day? |
 | **Delivery (DORA)** | How often do you ship, how long from pull request to release, how often does a release need a fix, and how fast is a broken main branch fixed? Each rated Low to Elite. |
-| **Inside a job** | For any job: where did the time go, which steps ran, what did the log say, and if it failed, why? |
 | **Health check** | Why do jobs fail? Where does job time go? Are the safety basics (read-only tokens, pinned actions, time limits) in place? |
+| **Inside a job** | For any job: where did the time go, which steps ran, what did the log say, and if it failed, why? |
 | **Test audit** | On one recent pull request per repository, which tests ran more than once, and was the repeat useful or waste? |
 | **AI impact** | Which AI tools and models write and review code, how much CI time involves AI, and do AI-written changes run into more problems? |
 | **Solution box** | Every problem found, with the gain and how to fix it (often ready YAML), in the order to tackle them. |

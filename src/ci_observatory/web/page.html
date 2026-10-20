@@ -26,23 +26,36 @@
     </div>
   </header>
 
-  <nav class="nav" aria-label="Sections">
-    <div class="wrap">
-      <div class="links">
-        <a href="#overview">Overview</a>
-        <a href="#delivery">Delivery</a>
-        <a href="#job">Inside a job</a>
-        <a href="#health">Health check</a>
-        <a href="#tests">Test audit</a>
-        <a href="#ai">AI impact</a>
-        <a href="#fixes">Solution box</a>
-        <a href="#method">How it's measured</a>
+  <div class="shell wrap" id="shell">
+    <aside class="side" id="side" aria-label="Report sections">
+      <button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="side-body">
+        <span class="no" id="side-no">01</span><span class="cur" id="side-current">Overview</span><span class="chev" aria-hidden="true"></span>
+      </button>
+      <div class="side-body" id="side-body">
+        <div class="focus">
+          <label for="focus">Repositories</label>
+          <select id="focus"><option value="">All repositories</option></select>
+          <p class="focus-note" id="filter"></p>
+        </div>
+        <nav class="toc" id="toc" aria-label="Sections">
+          <p class="toc-group">The big picture</p>
+          <a href="#overview" data-section="overview"><span class="no">01</span><span class="t"><b>Overview</b><small>Speed and reliability at a glance</small></span><span class="badge" data-badge="overview"></span></a>
+          <a href="#delivery" data-section="delivery"><span class="no">02</span><span class="t"><b>Delivery (DORA)</b><small>How often you ship, and how safely</small></span><span class="badge" data-badge="delivery"></span></a>
+          <p class="toc-group">Find the causes</p>
+          <a href="#health" data-section="health"><span class="no">03</span><span class="t"><b>Health check</b><small>Why jobs fail, where time goes</small></span><span class="badge" data-badge="health"></span></a>
+          <a href="#job" data-section="job"><span class="no">04</span><span class="t"><b>Inside a job</b><small>One job, step by step, with its log</small></span><span class="badge" data-badge="job"></span></a>
+          <a href="#tests" data-section="tests"><span class="no">05</span><span class="t"><b>Test audit</b><small>Tests that run more than once</small></span><span class="badge" data-badge="tests"></span></a>
+          <p class="toc-group">Beyond the pipeline</p>
+          <a href="#ai" data-section="ai"><span class="no">06</span><span class="t"><b>AI impact</b><small>Where AI writes and reviews code</small></span><span class="badge" data-badge="ai"></span></a>
+          <p class="toc-group">Act on it</p>
+          <a href="#fixes" data-section="fixes"><span class="no">07</span><span class="t"><b>Solution box</b><small>Every problem found, with its fix</small></span><span class="badge accent" data-badge="fixes"></span></a>
+          <a href="#method" data-section="method"><span class="no">08</span><span class="t"><b>How it's measured</b><small>Sources, samples and limits</small></span></a>
+        </nav>
+        <button class="all-toggle" id="all-toggle" type="button" aria-pressed="false">Show everything on one page</button>
       </div>
-      <div class="filter" id="filter"></div>
-    </div>
-  </nav>
+    </aside>
 
-  <main class="wrap">
+    <main class="stage" id="stage">
     <!-- 01 OVERVIEW -->
     <section class="deck" id="overview" aria-labelledby="h-overview">
       <div class="deck-head"><span class="no">01</span><h2 id="h-overview">Overview</h2>
@@ -91,9 +104,34 @@
       </div>
     </section>
 
-    <!-- 03 INSIDE A JOB -->
+    <!-- 03 HEALTH CHECK -->
+    <section class="deck" id="health" aria-labelledby="h-health">
+      <div class="deck-head"><span class="no">03</span><h2 id="h-health">Health check</h2>
+        <p>Why jobs fail, where their time goes, and whether the basic safety settings are in place.</p></div>
+      <div class="grid">
+        <div class="panel s5">
+          <div class="panel-head"><h3>Why do jobs fail?</h3></div>
+          <p class="hint">Failed jobs from the log sample, grouped by cause.</p>
+          <div id="causes"></div>
+        </div>
+        <div class="panel s7">
+          <div class="panel-head"><h3>Where does job time go?</h3></div>
+          <p class="hint">Share of time in successful jobs, read from their logs.</p>
+          <div class="legend" id="time-legend"></div>
+          <div class="chart" id="time-split"></div>
+          <p class="answer" id="time-answer"></p>
+        </div>
+        <div class="panel s12">
+          <div class="panel-head"><h3>Are the safety basics in place?</h3></div>
+          <p class="hint">✓ fine &nbsp; ! worth a look &nbsp; ✕ fix this. Hover a mark for details.</p>
+          <div id="checks"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 INSIDE A JOB -->
     <section class="deck" id="job" aria-labelledby="h-job">
-      <div class="deck-head"><span class="no">03</span><h2 id="h-job">Inside a job</h2>
+      <div class="deck-head"><span class="no">04</span><h2 id="h-job">Inside a job</h2>
         <p>Pick a job to see where its time went and, if it failed, why.</p></div>
       <div class="grid">
         <div class="panel s8">
@@ -120,31 +158,6 @@
           <p class="hint">The important lines: commands, errors, warnings and test results.</p>
           <div class="feed" id="feed" role="log" aria-live="off"></div>
           <p class="panel-foot">Names, emails and tokens are removed.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 04 HEALTH CHECK -->
-    <section class="deck" id="health" aria-labelledby="h-health">
-      <div class="deck-head"><span class="no">04</span><h2 id="h-health">Health check</h2>
-        <p>Why jobs fail, where their time goes, and whether the basic safety settings are in place.</p></div>
-      <div class="grid">
-        <div class="panel s5">
-          <div class="panel-head"><h3>Why do jobs fail?</h3></div>
-          <p class="hint">Failed jobs from the log sample, grouped by cause.</p>
-          <div id="causes"></div>
-        </div>
-        <div class="panel s7">
-          <div class="panel-head"><h3>Where does job time go?</h3></div>
-          <p class="hint">Share of time in successful jobs, read from their logs.</p>
-          <div class="legend" id="time-legend"></div>
-          <div class="chart" id="time-split"></div>
-          <p class="answer" id="time-answer"></p>
-        </div>
-        <div class="panel s12">
-          <div class="panel-head"><h3>Are the safety basics in place?</h3></div>
-          <p class="hint">✓ fine &nbsp; ! worth a look &nbsp; ✕ fix this. Hover a mark for details.</p>
-          <div id="checks"></div>
         </div>
       </div>
     </section>
@@ -226,7 +239,9 @@
       <div class="deck-head"><span class="no">08</span><h2 id="h-method">How it's measured</h2></div>
       <div class="method" id="method-body"></div>
     </section>
-  </main>
+      <nav class="pager" id="pager" aria-label="Previous and next section"></nav>
+    </main>
+  </div>
   <footer class="end wrap" id="footer"></footer>
   <div class="tip" id="tip" role="tooltip" hidden></div>
 </div>

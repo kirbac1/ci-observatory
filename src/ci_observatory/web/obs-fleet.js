@@ -61,7 +61,7 @@
     });
     O.on('repo', () => { O.safe('kpis', F.kpis); O.safe('scatter', F.scatter); O.safe('hours', F.hours); O.safe('daily', F.daily); if (btn.getAttribute('aria-pressed') === 'true') F.table(); });
     let width = 0;
-    new ResizeObserver(() => { const w = O.$('#overview').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('scatter', F.scatter); O.safe('hours', F.hours); O.safe('daily', F.daily); } }).observe(O.$('#overview'));
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#overview').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('scatter', F.scatter); O.safe('hours', F.hours); O.safe('daily', F.daily); } })).observe(O.$('#overview'));
   };
 
   // ---------------------------------------------------------------- headline numbers

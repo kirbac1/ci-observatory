@@ -29,7 +29,7 @@
     };
     draw();
     let width = 0;
-    new ResizeObserver(() => { const w = O.$('#ai').clientWidth; if (Math.abs(w - width) > 4) { width = w; draw(); } }).observe(O.$('#ai'));
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#ai').clientWidth; if (Math.abs(w - width) > 4) { width = w; draw(); } })).observe(O.$('#ai'));
   };
   A.hasInstructions = (r) => A.INSTRUCTIONS.some((k) => r.files && r.files[k]);
   A.kpis = function () {

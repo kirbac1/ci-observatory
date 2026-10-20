@@ -30,6 +30,9 @@
     const draw = () => { O.safe('dora-tiles', D.tiles); O.safe('dora-table', D.table); O.safe('dora-cadence', D.cadence); };
     draw();
     O.on('repo', draw);
+    // Hidden sections have no width; draw the timeline again once this one is shown, or the window changes.
+    let width = 0;
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#delivery').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('dora-cadence', D.cadence); } })).observe(O.$('#delivery'));
   };
   D.tiles = function () {
     const sel = O.state.repo && D.repos.find((r) => r.repo === O.state.repo);
@@ -116,7 +119,7 @@
       [['important', 'Important lines'], ['problems', 'Errors and warnings'], ['all', 'Everything']].map(([v, l]) => O.el('option', { value: v, text: l }))));
     O.on('repo', () => R.list());
     let width = 0;
-    new ResizeObserver(() => { const w = O.$('#job-steps').clientWidth; if (R.job && Math.abs(w - width) > 4) { width = w; O.safe('job-steps', R.steps); O.safe('job-split', R.split); } }).observe(O.$('#job-steps'));
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#job-steps').clientWidth; if (R.job && Math.abs(w - width) > 4) { width = w; O.safe('job-steps', R.steps); O.safe('job-split', R.split); } })).observe(O.$('#job-steps'));
     R.list();
     const pick = R.jobs.filter((j) => j.failure && j.failure.class === 'test' && j.dur <= 900).sort((a, b) => b.lines - a.lines)[0];
     R.open((pick || R.jobs.find((j) => j.failure) || R.jobs[0]).id, false);
@@ -295,7 +298,7 @@
     draw();
     O.on('repo', draw);
     let width = 0;
-    new ResizeObserver(() => { const w = O.$('#health').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('causes', X.causes); O.safe('time-split', X.time); } }).observe(O.$('#health'));
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#health').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('causes', X.causes); O.safe('time-split', X.time); } })).observe(O.$('#health'));
   };
   X.causes = function () {
     const box = O.clear(O.$('#causes'));
@@ -407,7 +410,7 @@
     ]);
     O.on('repo', (repo) => { if (repo && T.repos.some((a) => a.repo === repo)) { pick.value = repo; O.safe('tests-detail', T.detail); } O.safe('tests-bars', T.bars); });
     let width = 0;
-    new ResizeObserver(() => { const w = O.$('#tests').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('tests-bars', T.bars); } }).observe(O.$('#tests'));
+    new ResizeObserver(() => requestAnimationFrame(() => { const w = O.$('#tests').clientWidth; if (Math.abs(w - width) > 4) { width = w; O.safe('tests-bars', T.bars); } })).observe(O.$('#tests'));
   };
   T.kpis = function () {
     const s = T.data.summary, e = s.extra || {};
