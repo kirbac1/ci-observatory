@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -184,7 +185,27 @@ def test_report_data_cannot_close_its_script_tag() -> None:
 
 def test_shared_command_leaves_out_local_options() -> None:
     argv = ["--org", "acme", "--out", "/Users/someone/reports", "--title", "Payments CI", "--open", "--out=/tmp/x"]
+    argv += ["--fixes", "/Users/someone/fixes.json", "--fixes=/tmp/f.json"]
     assert shareable(argv) == "ci-observatory --org acme --title 'Payments CI'"
+
+
+def test_measured_fixes_reach_the_report(tmp_path: Path) -> None:
+    (tmp_path / "runs.json").write_text("[]")
+    fixes = {"fixes": [{"repo": "acme/api", "status": "measured", "title": "Stop sleeping in teardown"}]}
+    (tmp_path / "fixes.json").write_text(json.dumps(fixes))
+    paths = {key: tmp_path / name for key, name in report.DATA_FILES.items()}
+    out = report.build(paths, tmp_path / "index.html", heading="H")
+    data = out.read_text().split('<script type="application/json" id="obs-data">', 1)[1].split("</script>", 1)[0]
+    assert json.loads(data)["fixes"] == fixes
+
+
+def test_demo_fixes_are_complete() -> None:
+    """Every demo fix has what the Solution box needs, and its numbers come with evidence."""
+    demo = json.loads((Path(__file__).parent.parent / "demo" / "data" / "fixes.json").read_text())
+    for fix in demo["fixes"]:
+        assert fix["phase"] in (1, 2, 3, 4) and fix["sev"] in ("crit", "high", "med", "low") and fix["effort"] in "SML"
+        assert fix["status"] in ("measured", "proposed") and fix["fix"] and fix["gain"] and fix["tradeoff"]
+        assert fix["evidence"] and all(e["url"].startswith("https://") for e in fix["evidence"])
 
 
 class ListingGh:

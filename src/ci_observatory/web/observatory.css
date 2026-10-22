@@ -344,6 +344,15 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 14px; }
 .card details { font-size: 14px; color: var(--ink-2); }
 .card details ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; color: var(--ink); }
 .card pre { margin: 8px 0 0; padding: 10px 12px; background: #04070c; border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.55 var(--mono); color: var(--ink-2); overflow-x: auto; white-space: pre; }
+.card .fix-status.measured { color: var(--good-ink); border-color: currentColor; }
+.card .fix-status.proposed { color: var(--hud); border-color: currentColor; }
+.card .fix-result b { color: var(--good-ink); }
+.card .fix-details { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
+.card .fix-details th, .card .fix-details td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.card .fix-details th { color: var(--ink-2); font-weight: 600; }
+.card .fix-note { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
+.card .fix-evidence { margin-top: 8px; font-size: 13px; }
+.card .fix-evidence a { color: var(--hud); }
 .card .repos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .card .repos button { font: 12.5px var(--sans); color: var(--hud); background: none; border: 1px solid var(--line-2); border-radius: 20px; padding: 1px 9px; cursor: pointer; }
 details > summary { cursor: pointer; color: var(--hud); font-weight: 500; list-style: none; }

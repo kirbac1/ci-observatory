@@ -37,6 +37,7 @@ DATA_FILES = {
     "logs": "logs.json",
     "tests": "tests.json",
     "signals": "signals.json",
+    "fixes": "fixes.json",
 }
 
 
@@ -101,6 +102,7 @@ def build(
         "logs": load(paths.get("logs")),
         "tests": load(paths.get("tests")),
         "signals": load(paths.get("signals")),
+        "fixes": load(paths.get("fixes")),
     }
     window = f"{meta['since']} to {meta['until']}" if meta["since"] else "recent runs"
     count = f"{len(repos)} repositories" if len(repos) != 1 else "1 repository"

@@ -148,9 +148,17 @@
   S.SEV = { crit: ['Critical', 9], high: ['High', 6], med: ['Medium', 3], low: ['Low', 1] };
   S.EFFORT = { S: ['quick fix', 1], M: ['some work', 2], L: ['project', 3] };
   S.PHASE = { 1: ['Remove waste', 'stop work that adds nothing'], 2: ['Fix what breaks', 'make red mean something again'], 3: ['Speed up', 'make the remaining work faster'], 4: ['Prevent', 'set defaults so it stays fixed'] };
+  S.STATUS = { measured: 'Measured', proposed: 'Proposed' };
+  /** "744 s → 474 s (−36%), on ..." from a fix's result; before and after may be numbers with a unit, or plain text. */
+  S.resultText = function (r) {
+    const num = typeof r.before === 'number' && typeof r.after === 'number';
+    const show = (v) => (typeof v === 'number' ? (r.unit === 's' ? O.fmt.dur(v) : O.fmt.num(v)) : v);
+    const change = num && r.before ? ` (${r.after < r.before ? '−' : '+'}${O.fmt.pct(Math.abs(r.after - r.before) / r.before)})` : '';
+    return `${show(r.before)} → ${show(r.after)}${change}${r.label ? ', ' + r.label : ''}.`;
+  };
   S.init = function (data) {
     S.cards = [];
-    for (const rule of S.RULES) { try { const card = rule(data); if (card) S.cards.push(card); } catch (e) { console.error('solution rule failed', e); } }
+    for (const rule of S.RULES) { try { const out = rule(data); if (out) S.cards.push(...[].concat(out)); } catch (e) { console.error('solution rule failed', e); } }
     S.cards.forEach((c) => { c.score = (S.SEV[c.sev][1] * (c.confidence || 1)) / S.EFFORT[c.effort][1]; });
     S.cards.sort((a, b) => a.phase - b.phase || b.score - a.score);
     const principle = O.clear(O.$('#sol-principle'));
@@ -180,23 +188,44 @@
         O.el('ol', null, c.fix.map((s) => O.el('li', { text: s }))),
         c.snippet ? O.el('pre', { text: c.snippet }) : null,
         c.repos && c.repos.length ? O.el('div', { class: 'repos' }, c.repos.slice(0, 10).map((r) => O.el('button', { type: 'button', text: O.fmt.short(r), title: 'Focus the page on ' + r, on: { click: () => O.selectRepo(r) } }))) : null);
-      box.appendChild(O.el('article', { class: 'card sev-' + c.sev },
+      if (c.details && c.details.length) {
+        how.appendChild(O.el('table', { class: 'fix-details' },
+          O.el('thead', null, O.el('tr', null, ['Measured', 'Before', 'After'].map((h) => O.el('th', { text: h })))),
+          O.el('tbody', null, c.details.map((row) => O.el('tr', null, row.map((cell) => O.el('td', { text: cell })))))));
+      }
+      if (c.estimate) how.appendChild(O.el('p', { class: 'fix-note', text: c.estimate }));
+      if (c.evidence && c.evidence.length) {
+        how.appendChild(O.el('div', { class: 'fix-evidence' }, O.el('b', { text: 'Evidence: ' }),
+          c.evidence.map((e, i) => [i ? ' · ' : '', O.el('a', { href: e.url, target: '_blank', rel: 'noopener', text: e.label })])));
+      }
+      box.appendChild(O.el('article', { class: 'card sev-' + c.sev + (c.status ? ' fix-' + c.status : '') },
         O.el('div', { class: 'top' },
           O.status(c.sev === 'crit' ? 'crit' : c.sev === 'high' ? 'serious' : c.sev === 'med' ? 'warn' : 'na', c.sev === 'low' ? 'i' : '!', S.SEV[c.sev][0]),
+          c.status ? O.el('span', { class: 'tag fix-status ' + c.status, text: S.STATUS[c.status], title: c.status === 'measured' ? 'Tried on this repository and timed' : 'Worked out, not yet timed on its own' }) : null,
           O.el('span', { class: 'tag', text: c.area }), O.el('span', { class: 'tag', text: S.EFFORT[c.effort][0] })),
         O.el('h4', { text: c.title }),
         O.el('div', { class: 'line' }, O.el('b', { text: 'Problem: ' }), c.problem),
+        c.result ? O.el('div', { class: 'line fix-result' }, O.el('b', { text: 'Result: ' }), S.resultText(c.result)) : null,
         O.el('div', { class: 'line' }, O.el('b', { text: 'Gain: ' }), c.gain),
+        c.tradeoff ? O.el('div', { class: 'line' }, O.el('b', { text: 'Trade-off: ' }), c.tradeoff) : null,
         how));
     }
   };
   S.markdown = function () {
     const lines = ['# Solution box', ''];
     for (const c of S.cards.filter((x) => S.area === 'All' || x.area === S.area)) {
-      lines.push(`## ${c.title}`, '', `*${S.SEV[c.sev][0]} · ${c.area} · ${S.EFFORT[c.effort][0]} · step ${c.phase}: ${S.PHASE[c.phase][0]}*`, '', `**Problem:** ${c.problem}`, '');
+      lines.push(`## ${c.title}`, '', `*${c.status ? S.STATUS[c.status] + ' · ' : ''}${S.SEV[c.sev][0]} · ${c.area} · ${S.EFFORT[c.effort][0]} · step ${c.phase}: ${S.PHASE[c.phase][0]}*`, '', `**Problem:** ${c.problem}`, '');
       c.fix.forEach((s, i) => lines.push(`${i + 1}. ${s}`));
-      if (c.snippet) lines.push('', '```yaml', c.snippet, '```');
+      if (c.snippet) lines.push('', '```' + (c.snippetLang || 'yaml'), c.snippet, '```');
+      if (c.result) lines.push('', `**Result:** ${S.resultText(c.result)}`);
+      if (c.details && c.details.length) {
+        lines.push('', '| Measured | Before | After |', '| --- | --- | --- |');
+        c.details.forEach((r) => lines.push(`| ${r.join(' | ')} |`));
+      }
+      if (c.estimate) lines.push('', c.estimate);
       lines.push('', `**Gain:** ${c.gain}`, '');
+      if (c.tradeoff) lines.push(`**Trade-off:** ${c.tradeoff}`, '');
+      if (c.evidence && c.evidence.length) lines.push(`Evidence: ${c.evidence.map((e) => `[${e.label}](${e.url})`).join(', ')}`, '');
       if (c.repos && c.repos.length) lines.push(`Repositories: ${c.repos.join(', ')}`, '');
     }
     return lines.join('\n');
@@ -208,6 +237,16 @@
     return out;
   };
   S.RULES = [
+    // ---- fixes tried and measured on a repository (fixes.json), sorted into the same steps
+    function measuredFixes(data) {
+      const list = (data.fixes && data.fixes.fixes) || [];
+      return list.filter((f) => f && f.title && S.PHASE[f.phase] && S.SEV[f.sev] && S.EFFORT[f.effort]).map((f) => ({
+        phase: f.phase, area: f.area || 'Tests', sev: f.sev, effort: f.effort, status: S.STATUS[f.status] ? f.status : 'proposed',
+        confidence: f.status === 'measured' ? 1.5 : 1, repos: f.repo ? [f.repo] : [], title: f.title, problem: f.problem || '',
+        fix: f.fix || [], snippet: f.snippet, snippetLang: f.snippet_lang, gain: f.gain || '', tradeoff: f.tradeoff,
+        result: f.result, details: f.details, estimate: f.estimate, evidence: (f.evidence || []).filter((e) => e && /^https:\/\//.test(e.url || '')),
+      }));
+    },
     // ---- 1. remove waste
     function securityScanTests(data) {
       const hits = ((data.tests && data.tests.repos) || []).filter((a) => (a.extra.in_security_scan || 0) > 0);

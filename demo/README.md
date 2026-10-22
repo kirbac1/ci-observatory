@@ -15,6 +15,7 @@ ci-observatory --org aiven --org Aiven-Open --visibility public --top 16 --days 
 | `logs.json` | 116 decoded job logs (cleaned; no raw logs) |
 | `tests.json` | the test audit of one pull request commit per repository |
 | `signals.json` | AI and DORA signals: pull requests, commits, reviews, releases |
+| `fixes.json` | fixes tried and measured on `Aiven-Open/pghoard` in a fork, shown in the Solution box |
 
 The Pages workflow rebuilds the demo from these files with the current page on every push to `main`, so changes to the
 page show up in the demo without calling GitHub. To build it locally:
