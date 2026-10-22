@@ -35,7 +35,7 @@ clicking it in any chart) focuses every section on it.
 | **Inside a job** | For any job: where did the time go, which steps ran, what did the log say, and if it failed, why? |
 | **Test audit** | On one recent pull request per repository, which tests ran more than once, and was the repeat useful or waste? |
 | **AI impact** | Which AI tools and models write and review code, how much CI time involves AI, and do AI-written changes run into more problems? |
-| **Solution box** | Every problem found, with the gain and how to fix it (often ready YAML), in the order to tackle them. |
+| **Solution box** | Every problem found, with the gain and how to fix it (often ready YAML), in the order to tackle them. Fixes you have already tried and timed can be added with `--fixes`, and show their before and after. |
 
 What each chart means, and what to do about it, is in [Reading the report](docs/report-guide.md).
 
@@ -118,6 +118,8 @@ ci-observatory [--org ORG]... [--repo OWNER/NAME]... [options]
   --days DAYS           look back this many days (default 30)
   --out OUT             output folder (default ./ci-observatory)
   --title TITLE         report heading (default: CI Observatory)
+  --fixes FILE          a fixes.json of fixes tried and measured on these repositories,
+                        shown in the Solution box
   --quick               smaller samples: fewer API calls and log downloads
   --no-logs             skip job logs and the test audit
   --no-tests            skip the test redundancy audit

@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "note": "Fixes that were tried and measured on a repository, shown in the Solution box next to the ones the report finds itself. Numbers come from the evidence linked with each fix.",
+  "fixes": [
+    {
+      "repo": "Aiven-Open/pghoard",
+      "status": "measured",
+      "phase": 1,
+      "area": "Tests",
+      "sev": "high",
+      "effort": "S",
+      "title": "Remove the fixed waits from the pghoard test suite",
+      "problem": "Every test that starts pghoard waited up to 5 s at shutdown for the upload progress tracker to finish a sleep. The first backup on each test server waited about 45 s for a paced checkpoint, and two timing tests slept longer than they needed to.",
+      "fix": [
+        "Let the upload progress tracker wait on an Event that stop() sets, instead of time.sleep(5). It still checks every 5 s while running.",
+        "Run CHECKPOINT in the test database fixture after loading its data, so pg_basebackup's spread checkpoint has nothing to write.",
+        "test_handle_site: use a 5 s floor for the backup interval instead of 10 s; it is still far above a backup's 2 s.",
+        "Restore stall tests: start the stale limit at 1 s instead of 2 s; the retries tested are the same."
+      ],
+      "snippet": "# pghoard/transfer.py, UploadEventProgressTracker\n@running.setter\ndef running(self, value: bool) -> None:\n    if value:\n        self._stopped.clear()\n    else:\n        self._stopped.set()   # wakes the loop at once\n\n# in run(): instead of time.sleep(self.CHECK_FREQUENCY)\nself._stopped.wait(self.CHECK_FREQUENCY)",
+      "snippet_lang": "python",
+      "gain": "36% less test time with every test still running on every version.",
+      "tradeoff": "No coverage is lost. The tracker change touches production code, but only how fast it stops; while running it behaves as before.",
+      "result": {
+        "before": 744,
+        "after": 474,
+        "unit": "s",
+        "label": "whole test suite on PostgreSQL 16, run serially as upstream CI does, same machine, the same 365 tests passing"
+      },
+      "details": [
+        ["test_basic_standalone_hot_backups", "46.5 s", "under 3.5 s"],
+        ["test_handle_site", "35.4 s", "20.5 s"],
+        ["restore stall tests", "36 s + 18 s", "20 s + 10 s"],
+        ["about 50 tests ending with a 5.0 s teardown", "5 s each", "no longer among the slowest 40"]
+      ],
+      "estimate": "Upstream jobs run these tests once per PostgreSQL version (7), so a ~50 min job should lose roughly 25 to 30 min. That is an extrapolation, not a measurement on GitHub's runners.",
+      "evidence": [
+        { "label": "Pull request #5 in the fork (commits ae5dffe, 6a01cb0, d099053, f21f2b3)", "url": "https://github.com/kirbac1/pghoard/pull/5" }
+      ]
+    },
+    {
+      "repo": "Aiven-Open/pghoard",
+      "status": "measured",
+      "phase": 3,
+      "area": "Speed",
+      "sev": "med",
+      "effort": "M",
+      "title": "Run the pghoard tests in parallel",
+      "problem": "pytest-xdist is already a dev dependency, but CI runs the suite on one CPU. Each of the three test jobs takes about 52 minutes.",
+      "fix": [
+        "Run pytest with -n auto (one worker per CPU) and pin pytest-xdist 3.8.0 and execnet 2.1.1, so tests run in the main thread where pghoard's SIGHUP handler works.",
+        "Give each worker its own port range and its own progress file, so workers never share a port or a file.",
+        "Allow 10 WAL senders on the test servers, so a test never waits for the previous test's sender to be freed.",
+        "Mark the walreceiver tests serial and run them in a second pytest pass without xdist until their flakiness is understood.",
+        "Fail hung tests and jobs: --timeout=900 per test, timeout-minutes: 60 per job."
+      ],
+      "snippet": "- run: python -m pytest -n auto -m 'not serial' --timeout=900 test/\n- run: python -m pytest -m serial --timeout=900 test/",
+      "gain": "Pull request checks in minutes instead of most of an hour.",
+      "tradeoff": "More test isolation code. One flaky walreceiver test runs in a slower serial pass. Work-stealing distribution was tried and reverted because some tests depend on the order they run in.",
+      "result": {
+        "before": "about 52 min per job",
+        "after": "2.5 to 4 min per pull request run",
+        "label": "GitHub Actions, upstream main against the fork; measured together with the version matrix change, so the two are not separated"
+      },
+      "evidence": [
+        { "label": "Build pghoard runs in the fork", "url": "https://github.com/kirbac1/pghoard/actions/workflows/build.yml" },
+        { "label": "Pull request #5 in the fork", "url": "https://github.com/kirbac1/pghoard/pull/5" }
+      ]
+    },
+    {
+      "repo": "Aiven-Open/pghoard",
+      "status": "proposed",
+      "phase": 1,
+      "area": "Tests",
+      "sev": "med",
+      "effort": "S",
+      "title": "Test each Python and each PostgreSQL version once, not every pair",
+      "problem": "Every push runs the PostgreSQL tests for 7 server versions inside each of 3 Python jobs: 21 PostgreSQL suites per push. Most pairs repeat what another pair already checked.",
+      "fix": [
+        "Run the whole suite on each Python version against PostgreSQL 18.",
+        "Run each other PostgreSQL version only for the tests that depend on it (mark them needs_pg in conftest and select with -m needs_pg), on one Python version.",
+        "Keep the full Python × PostgreSQL matrix in a scheduled weekly run.",
+        "Agree the change with the maintainers before merging."
+      ],
+      "snippet": "strategy:\n  matrix:\n    include:\n      - { python: '3.10', pg: '18', tests: all }\n      - { python: '3.11', pg: '18', tests: all }\n      - { python: '3.12', pg: '18', tests: all }\n      - { python: '3.12', pg: '13', tests: needs_pg }\n      # ... one row per other PostgreSQL version",
+      "gain": "The biggest single cut in CI time; each job installs only the PostgreSQL it tests.",
+      "tradeoff": "Less coverage per pull request: a bug that shows only on one Python × PostgreSQL pair is found by the weekly run, not on the pull request. That is a team decision, so it goes in its own pull request.",
+      "result": {
+        "before": "21 PostgreSQL suites per push",
+        "after": "3 full runs and 6 PostgreSQL-only runs",
+        "label": "jobs per push; not timed on its own"
+      },
+      "evidence": [
+        { "label": "Commit 797e6ee in the fork", "url": "https://github.com/kirbac1/pghoard/commit/797e6ee" }
+      ]
+    },
+    {
+      "repo": "Aiven-Open/pghoard",
+      "status": "measured",
+      "phase": 3,
+      "area": "Speed",
+      "sev": "low",
+      "effort": "M",
+      "title": "Stop the WAL receiver without waiting out its keepalive",
+      "problem": "With no replication data flowing, the WAL receiver waits up to 10 s in select(), so stopping it took up to 10 s.",
+      "fix": [
+        "Add a socket pair to the same select() and write to it when running is set to False, so the loop wakes at once.",
+        "On waking it does what the timeout did (send feedback, ship the unfinished segment), so what is uploaded on stop does not change.",
+        "Close the wake-up sockets even when connecting fails."
+      ],
+      "gain": "Faster shutdown in production and in tests.",
+      "tradeoff": "The most complex change of the set, in production code. Worth its own pull request after the others.",
+      "result": {
+        "before": 55.8,
+        "after": 20,
+        "unit": "s",
+        "label": "the four walreceiver tests, run locally (from the commit message)"
+      },
+      "evidence": [
+        { "label": "Commit 24f54ed in the fork", "url": "https://github.com/kirbac1/pghoard/commit/24f54ed" }
+      ]
+    }
+  ]
+}

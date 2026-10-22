@@ -79,16 +79,16 @@ def can_read(repo: str) -> tuple[bool, bool]:
 
 
 def shareable(argv: Sequence[str]) -> str:
-    """The command line as the report shows it: without --out and --open, which only make sense on this machine (and
-    a path can name a local user)."""
+    """The command line as the report shows it: without --out, --fixes and --open, which only make sense on this
+    machine (and a path can name a local user)."""
     kept: list[str] = []
     skip = False
     for arg in argv:
         if skip:
             skip = False
-        elif arg == "--out":
+        elif arg in ("--out", "--fixes"):
             skip = True
-        elif not (arg.startswith("--out=") or arg == "--open"):
+        elif not (arg.startswith(("--out=", "--fixes=")) or arg == "--open"):
             kept.append(arg)
     return shlex.join(["ci-observatory", *kept])
 
@@ -124,6 +124,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--days", type=int, default=30, help="look back this many days (default 30)")
     parser.add_argument("--out", type=Path, default=Path("ci-observatory"), help="output folder (default ./ci-observatory)")
     parser.add_argument("--title", help="report heading (default: CI Observatory)")
+    parser.add_argument(
+        "--fixes",
+        type=Path,
+        metavar="FILE",
+        help="a fixes.json of fixes tried and measured on these repositories, shown in the Solution box",
+    )
     parser.add_argument("--quick", action="store_true", help="smaller samples: fewer API calls and log downloads")
     parser.add_argument("--no-logs", action="store_true", help="skip job logs and the test audit")
     parser.add_argument("--no-tests", action="store_true", help="skip the test redundancy audit")
@@ -164,8 +170,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         if private:
             say(f"  {repo} is private: its data stays in {args.out}/ on this machine.")
 
+    fixes = None
+    if args.fixes:
+        try:
+            fixes = json.loads(args.fixes.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            say(f"error: cannot read --fixes {args.fixes}: {e}")
+            return 2
+        if not isinstance(fixes, dict) or not isinstance(fixes.get("fixes"), list):
+            say(f'error: --fixes {args.fixes} needs a "fixes" list (see demo/data/fixes.json)')
+            return 2
+
     data = args.out / "data"
     data.mkdir(parents=True, exist_ok=True)
+    if fixes is not None:
+        (data / "fixes.json").write_text(json.dumps(fixes, indent=2, ensure_ascii=False), encoding="utf-8")
     started = time.monotonic()
     budget = ["--max-calls", str(args.max_calls)]
 

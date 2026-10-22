@@ -192,6 +192,10 @@ often with a YAML snippet to paste. Cards are ordered in four phases:
 4. **Prevent:** test visibility, time limits, helpful process checks, release automation, instructions for AI agents,
    and marking AI-assisted commits.
 
+Cards marked **Measured** are fixes that were tried and timed on that repository. They add a *Result* line (before →
+after), the *Trade-off*, and under *How to fix it* the per-test numbers and links to the pull request or commits.
+**Proposed** means the fix is worked out but not timed on its own. The demo has four for `pghoard`.
+
 Each card shows a severity (Critical, High, Medium, Low), an area and an effort (*quick fix* or *some work*). The
 repository chips on a card focus the page on that repository. Filter by area with the buttons, or use **Copy as
 Markdown** to paste the whole list into an issue or a planning document.

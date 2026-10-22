@@ -209,6 +209,12 @@ card with the affected repositories, the evidence in numbers, the expected gain 
 | 3. Speed up | dependencies downloaded every time · pipelines over ten minutes |
 | 4. Prevent | test jobs that don't say which tests ran · jobs without a time limit · process checks that only say "red" · merged work waiting for a release · no instructions for AI agents · AI-assisted commits not marked |
 
+Measured fixes come from an optional `fixes.json` (`ci-observatory --fixes FILE`, or the file in the data folder). Each
+one is a fix somebody tried on a repository: the same fields as a card, plus the result before and after, the
+trade-off and links to the evidence. They sort into the same four phases, are marked *Measured* or *Proposed*, and a
+measured fix ranks above a found problem of the same weight. [demo/data/fixes.json](../demo/data/fixes.json) is a
+complete example.
+
 Cards are ranked by severity (Critical 9, High 6, Medium 3, Low 1) times confidence, divided by effort (quick fix 1,
 some work 2). The test rules use the Test audit's buckets, so a deliberate matrix is reported as a cost to weigh, not as
 waste.
